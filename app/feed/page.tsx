@@ -24,7 +24,24 @@ export default function FeedPage() {
           <Link href="/">
             <LogoText />
           </Link>
-          <DesktopNav />
+          <div className="flex items-center gap-2">
+            {/* Mobile logout/login button */}
+            <div className="md:hidden">
+              {isAuthenticated ? (
+                <Button variant="ghost" size="icon" onClick={logout} title="Logout">
+                  <LogOut className="h-5 w-5" />
+                </Button>
+              ) : (
+                <Link href="/auth">
+                  <Button variant="ghost" size="icon" title="Login">
+                    <LogIn className="h-5 w-5" />
+                  </Button>
+                </Link>
+              )}
+            </div>
+            {/* Desktop nav */}
+            <DesktopNav />
+          </div>
         </div>
       </header>
 

@@ -2,7 +2,7 @@
 
 import type React from "react"
 
-import { useRef, useState } from "react"
+import { useRef, useState, useEffect } from "react"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 
@@ -16,20 +16,52 @@ export function VerificationCodeInput({ length = 6, onComplete, error }: Verific
   const [code, setCode] = useState<string[]>(Array(length).fill(""))
   const inputRefs = useRef<(HTMLInputElement | null)[]>([])
 
+  useEffect(() => {
+    // Focus first input on mount with a slight delay to ensure ref is set
+    const timer = setTimeout(() => {
+      inputRefs.current[0]?.focus()
+    }, 100)
+    return () => clearTimeout(timer)
+  }, [])
+
   const handleChange = (index: number, value: string) => {
+    // Only allow digits
+    if (value && !/^\d+$/.test(value)) return
+
+    // Handle paste or multiple characters
     if (value.length > 1) {
-      value = value[0]
+      const digits = value.slice(0, length).split('')
+      const newCode = [...code]
+      digits.forEach((digit, i) => {
+        if (index + i < length && /^\d$/.test(digit)) {
+          newCode[index + i] = digit
+        }
+      })
+      setCode(newCode)
+
+      // Focus the next empty field or last field
+      const nextIndex = Math.min(index + digits.length, length - 1)
+      requestAnimationFrame(() => {
+        inputRefs.current[nextIndex]?.focus()
+      })
+
+      // Check if complete
+      if (newCode.every((digit) => digit !== "")) {
+        onComplete(newCode.join(""))
+      }
+      return
     }
 
-    if (!/^\d*$/.test(value)) return
-
+    // Single character entry
     const newCode = [...code]
     newCode[index] = value
     setCode(newCode)
 
-    // Move to next input
+    // Move to next input automatically
     if (value && index < length - 1) {
-      inputRefs.current[index + 1]?.focus()
+      requestAnimationFrame(() => {
+        inputRefs.current[index + 1]?.focus()
+      })
     }
 
     // Check if complete
@@ -39,8 +71,20 @@ export function VerificationCodeInput({ length = 6, onComplete, error }: Verific
   }
 
   const handleKeyDown = (index: number, e: React.KeyboardEvent<HTMLInputElement>) => {
-    if (e.key === "Backspace" && !code[index] && index > 0) {
-      inputRefs.current[index - 1]?.focus()
+    if (e.key === "Backspace") {
+      if (!code[index] && index > 0) {
+        // If current field is empty, move to previous field
+        e.preventDefault()
+        const newCode = [...code]
+        newCode[index - 1] = ""
+        setCode(newCode)
+        inputRefs.current[index - 1]?.focus()
+      } else {
+        // Clear current field
+        const newCode = [...code]
+        newCode[index] = ""
+        setCode(newCode)
+      }
     }
   }
 
@@ -77,6 +121,8 @@ export function VerificationCodeInput({ length = 6, onComplete, error }: Verific
             onChange={(e) => handleChange(index, e.target.value)}
             onKeyDown={(e) => handleKeyDown(index, e)}
             onPaste={handlePaste}
+            onFocus={(e) => e.target.select()}
+            autoFocus={index === 0}
             className="w-12 h-12 text-center text-lg font-semibold"
           />
         ))}

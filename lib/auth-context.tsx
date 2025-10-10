@@ -293,7 +293,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     setUser(null)
     setIsAuthenticated(false)
     localStorage.removeItem("user")
-    window.location.href = "/auth"
+    window.location.href = "/"
   }
 
   const updateProfile = (data: Partial<User>) => {

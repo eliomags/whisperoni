@@ -41,6 +41,7 @@ export function PhoneInput({
         onChange={handleChange}
         placeholder={placeholder}
         className={error ? "border-destructive" : ""}
+        autoFocus
       />
       {error && <p className="text-sm text-destructive">{error}</p>}
     </div>
