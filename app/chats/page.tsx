@@ -1,6 +1,7 @@
 "use client"
 
 import { MobileNav } from "@/components/mobile-nav"
+import { DesktopNav } from "@/components/desktop-nav"
 import { LogoText } from "@/components/logo"
 import { Card, CardContent } from "@/components/ui/card"
 import { MessageSquare } from "lucide-react"
@@ -14,8 +15,9 @@ export default function ChatsPage() {
   return (
     <div className="min-h-screen bg-background pb-20 md:pb-8">
       <header className="sticky top-0 z-40 bg-card border-b border-border shadow-sm">
-        <div className="container mx-auto px-4 h-16 flex items-center">
+        <div className="container mx-auto px-4 h-16 flex items-center justify-between">
           <LogoText />
+          <DesktopNav />
         </div>
       </header>
 

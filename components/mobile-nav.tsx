@@ -4,7 +4,7 @@ import type React from "react"
 
 import Link from "next/link"
 import { usePathname, useRouter } from "next/navigation"
-import { Home, MessageSquare, User, Filter, PlusCircle } from "lucide-react"
+import { Home, MessageSquare, User, Filter, PlusCircle, Heart } from "lucide-react"
 import { cn } from "@/lib/utils"
 import { CreatePostDialog } from "@/components/create-post-dialog"
 import { useAuth } from "@/lib/auth-context"
@@ -26,6 +26,7 @@ export function MobileNav() {
   const links = [
     { href: "/feed", label: "Feed", icon: Home, public: true },
     { href: "/chats", label: "Chats", icon: MessageSquare, public: false },
+    { href: "/matches", label: "Matches", icon: Heart, public: false },
     { href: "/profile", label: "Profile", icon: User, public: false },
   ]
 

@@ -253,10 +253,40 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         setUser(userData)
         setIsAuthenticated(true)
         localStorage.setItem("user", JSON.stringify(userData))
+
+        // Check for pending match token
+        const matchToken = sessionStorage.getItem("matchToken")
+        if (matchToken) {
+          await linkUserToMatch(userData.id, phone, matchToken)
+          sessionStorage.removeItem("matchToken")
+        }
+
         return true
       }
     }
     return false
+  }
+
+  const linkUserToMatch = async (userId: string, phone: string, token: string) => {
+    try {
+      const res = await fetch(`/api/match/${token}/link`, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ userId, phone }),
+      })
+
+      if (res.ok) {
+        const data = await res.json()
+
+        // If both joined, could show a notification here
+        if (data.bothJoined) {
+          console.log("Match activated!", data.otherUser)
+          // TODO: Show toast notification when both users have joined
+        }
+      }
+    } catch (error) {
+      console.error("Failed to link match:", error)
+    }
   }
 
   const logout = () => {

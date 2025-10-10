@@ -4,7 +4,7 @@ import Link from "next/link"
 import { useAuth } from "@/lib/auth-context"
 import { LogoText } from "@/components/logo"
 import { Button } from "@/components/ui/button"
-import { ArrowRight, LogIn } from "lucide-react"
+import { ArrowRight, LogIn, Heart, Info } from "lucide-react"
 import { useEffect } from "react"
 import { useRouter } from "next/navigation"
 
@@ -105,6 +105,33 @@ export default function Home() {
               Named after the sophisticated negroni cocktail, we bring the same balance of complexity and smoothness to
               modern dating. It's not about the noise—it's about the taste.
             </p>
+          </div>
+        </section>
+
+        <section className="py-20 border-t border-border bg-gradient-to-b from-pink-50/50 to-background dark:from-pink-950/10">
+          <div className="max-w-3xl mx-auto text-center space-y-8">
+            <div className="inline-flex items-center justify-center h-16 w-16 bg-gradient-to-br from-pink-500 to-red-500 rounded-full mb-4">
+              <Heart className="h-8 w-8 text-white fill-white" />
+            </div>
+            <h2 className="text-3xl md:text-4xl font-serif font-light">Play Cupid for Your Friends</h2>
+            <p className="text-lg text-muted-foreground max-w-2xl mx-auto">
+              Know two people who'd be perfect together? You don't need an account to suggest a match. Just provide their
+              phone numbers and we'll send them both a special invitation.
+            </p>
+            <div className="flex flex-col sm:flex-row gap-4 justify-center">
+              <Link href="/suggest-match">
+                <Button size="lg" variant="outline" className="gap-2 text-base px-8">
+                  <Heart className="h-4 w-4" />
+                  Suggest a Match
+                </Button>
+              </Link>
+              <Link href="/how-matchmaking-works">
+                <Button size="lg" variant="ghost" className="gap-2 text-base px-8">
+                  <Info className="h-4 w-4" />
+                  How It Works
+                </Button>
+              </Link>
+            </div>
           </div>
         </section>
 

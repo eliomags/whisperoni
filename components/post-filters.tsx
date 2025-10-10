@@ -4,7 +4,7 @@ import { Label } from "@/components/ui/label"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { Input } from "@/components/ui/input"
 import { usePosts } from "@/lib/posts-context"
-import { Filter } from "lucide-react"
+import { Filter, Search } from "lucide-react"
 
 export function PostFilters() {
   const { filters, setFilters } = usePosts()
@@ -18,6 +18,24 @@ export function PostFilters() {
         </CardTitle>
       </CardHeader>
       <CardContent className="space-y-4">
+        <div className="space-y-2">
+          <Label htmlFor="search-filter" className="flex items-center gap-2">
+            <Search className="h-4 w-4" />
+            Search
+          </Label>
+          <Input
+            id="search-filter"
+            placeholder="Search posts, names, or keywords..."
+            value={filters.search || ""}
+            onChange={(e) => setFilters({ ...filters, search: e.target.value })}
+          />
+          {filters.search && (
+            <p className="text-xs text-muted-foreground">
+              Searching in post content, user names, and locations
+            </p>
+          )}
+        </div>
+
         <div className="space-y-2">
           <Label htmlFor="gender-filter">Gender</Label>
           <Select

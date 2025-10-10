@@ -118,3 +118,7 @@ This is an MVP with dummy data and client-side only logic:
 - All data stored in React Context
 - Verification codes hardcoded
 - No real-time updates or WebSocket connections
+- never add this to the commit :🤖 Generated with [Claude                             │
+│   Code](https://claude.com/claude-code)                 │
+│                                                         │
+│   Co-Authored-By: Claude <noreply@anthropic.com>"

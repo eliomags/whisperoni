@@ -2,6 +2,7 @@
 
 import { PostCard } from "@/components/post-card"
 import { MobileNav } from "@/components/mobile-nav"
+import { DesktopNav } from "@/components/desktop-nav"
 import { LogoText } from "@/components/logo"
 import { usePosts } from "@/lib/posts-context"
 import { useAuth } from "@/lib/auth-context"
@@ -23,19 +24,7 @@ export default function FeedPage() {
           <Link href="/">
             <LogoText />
           </Link>
-          {isAuthenticated ? (
-            <Button variant="ghost" size="sm" onClick={logout} className="gap-2">
-              <LogOut className="h-4 w-4" />
-              <span className="hidden sm:inline">Logout</span>
-            </Button>
-          ) : (
-            <Link href="/auth">
-              <Button variant="ghost" size="sm" className="gap-2">
-                <LogIn className="h-4 w-4" />
-                <span className="hidden sm:inline">Login</span>
-              </Button>
-            </Link>
-          )}
+          <DesktopNav />
         </div>
       </header>
 

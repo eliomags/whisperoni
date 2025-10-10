@@ -30,6 +30,7 @@ export type PostFilters = {
   gender?: "male" | "female" | "other" | "all"
   orientation?: "straight" | "gay" | "bisexual" | "other" | "all"
   location?: string
+  search?: string
 }
 
 const PostsContext = createContext<PostsContextType | undefined>(undefined)
@@ -187,6 +188,7 @@ export function PostsProvider({ children }: { children: ReactNode }) {
     gender: "all",
     orientation: "all",
     location: "",
+    search: "",
   })
   const [showFilters, setShowFilters] = useState(false)
   const { user } = useAuth()
@@ -222,6 +224,17 @@ export function PostsProvider({ children }: { children: ReactNode }) {
 
     if (filters.location && !post.location.toLowerCase().includes(filters.location.toLowerCase())) {
       return false
+    }
+
+    if (filters.search) {
+      const searchTerm = filters.search.toLowerCase()
+      const matchesContent = post.content.toLowerCase().includes(searchTerm)
+      const matchesName = post.userName.toLowerCase().includes(searchTerm)
+      const matchesLocation = post.location.toLowerCase().includes(searchTerm)
+
+      if (!matchesContent && !matchesName && !matchesLocation) {
+        return false
+      }
     }
 
     return true
