@@ -1,0 +1,49 @@
+name = "whisperoni"
+main = "src/worker.js"
+compatibility_date = "2026-05-28"
+
+[assets]
+directory = "./public"
+binding = "ASSETS"
+not_found_handling = "single-page-application"
+run_worker_first = ["/pair/*", "/chat/*", "/media/*", "/health"]
+
+[[durable_objects.bindings]]
+name = "CHAT_DO"
+class_name = "ChatDurableObject"
+
+[[migrations]]
+tag = "v1"
+new_sqlite_classes = ["ChatDurableObject"]
+
+[[kv_namespaces]]
+binding = "PAIR_KV"
+id = "6fcdb9505f094699a18e7a53a244f8a4"
+
+[[r2_buckets]]
+binding = "MEDIA"
+bucket_name = "whisperoni-media"
+
+[observability]
+enabled = true
+head_sampling_rate = 1.0
+
+# [limits] removed — Free plan does not allow cpu_ms override. The default Standard
+# pricing model's CPU budget is well above what /media/upload + R2 purge needs.
+
+# Custom-domain routes are commented out for the initial *.workers.dev deploy.
+# Uncomment AFTER:
+#   1. Verification steps 11-22 pass against the *.workers.dev URL.
+#   2. The four Vercel DNS records for whisperoni.com are deleted in the Cloudflare dashboard:
+#      - A     whisperoni.com           -> 76.76.21.21
+#      - CNAME www.whisperoni.com       -> cname.vercel-dns.com
+#      - TXT   _vercel.whisperoni.com   (x2)
+# Then re-deploy. custom_domain = true makes Wrangler create the Worker-bound DNS records.
+#
+# [[routes]]
+# pattern = "whisperoni.com"
+# custom_domain = true
+#
+# [[routes]]
+# pattern = "www.whisperoni.com"
+# custom_domain = true

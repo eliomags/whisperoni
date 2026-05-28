@@ -1,0 +1,2954 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
+<title>Whisperoni — chat without the noise</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Instrument+Serif:ital@0;1&family=DM+Sans:opsz,wght@9..40,300;9..40,400;9..40,500;9..40,600;9..40,700&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
+<script src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js"></script>
+<style>
+  :root{
+    --ink:#100a0c;
+    --ink-2:#1a1014;
+    --ink-3:#241519;
+    --velvet:#3a141d;
+    --velvet-2:#4a1a25;
+    --cream:#f1e6d1;
+    --cream-dim:#c8b89c;
+    --whisper:#8a7567;
+    --gold:#d8a86a;
+    --blush:#e8a8b1;
+    --leaf:#8aa882;
+    --sky:#8fb3c8;
+    --me:#d8a86a;
+    --them:#2a181e;
+    --line:rgba(241,230,209,.08);
+    --line-2:rgba(241,230,209,.14);
+    --shadow-lg: 0 30px 80px -20px rgba(0,0,0,.65), 0 0 0 1px rgba(241,230,209,.04);
+    --ease: cubic-bezier(.2,.7,.2,1);
+  }
+
+  *,*::before,*::after{box-sizing:border-box}
+  html,body{margin:0;padding:0;height:100%;background:#0a0608;color:var(--cream);font-family:"DM Sans",ui-sans-serif,system-ui,sans-serif;-webkit-font-smoothing:antialiased;text-rendering:optimizeLegibility}
+  body{
+    background:
+      radial-gradient(1200px 600px at 80% -10%, #2a0f17 0%, transparent 60%),
+      radial-gradient(900px 500px at -10% 110%, #1a1014 0%, transparent 60%),
+      #0a0608;
+    min-height:100vh;
+    display:grid;
+    place-items:center;
+    overflow:hidden;
+    position:relative;
+  }
+  /* film grain */
+  body::before{
+    content:"";position:fixed;inset:0;pointer-events:none;z-index:100;
+    background-image:url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='160' height='160'><filter id='n'><feTurbulence type='fractalNoise' baseFrequency='.9' numOctaves='2' stitchTiles='stitch'/><feColorMatrix values='0 0 0 0 1  0 0 0 0 1  0 0 0 0 1  0 0 0 .18 0'/></filter><rect width='100%' height='100%' filter='url(%23n)'/></svg>");
+    opacity:.5;mix-blend-mode:overlay;
+  }
+
+  button{font:inherit;color:inherit;background:none;border:0;cursor:pointer;padding:0}
+  input,textarea{font:inherit;color:inherit;background:none;border:0;outline:0}
+  input::placeholder,textarea::placeholder{color:var(--whisper)}
+
+  /* ===== PHONE FRAME ===== */
+  .frame{
+    position:relative;
+    width:min(420px, 100vw);
+    height:min(900px, 100vh);
+    background:var(--ink);
+    border-radius:42px;
+    box-shadow:var(--shadow-lg);
+    overflow:hidden;
+    isolation:isolate;
+  }
+  @media (max-width: 480px){
+    .frame{width:100vw;height:100vh;height:100dvh;border-radius:0;box-shadow:none}
+  }
+  .frame::after{
+    /* edge glow */
+    content:"";position:absolute;inset:0;pointer-events:none;border-radius:inherit;
+    box-shadow:inset 0 0 0 1px rgba(241,230,209,.05), inset 0 60px 80px -40px rgba(216,168,106,.06);
+  }
+
+  /* ===== SCREENS ===== */
+  .screens{position:absolute;inset:0}
+  .screen{
+    position:absolute;inset:0;
+    display:flex;flex-direction:column;
+    background:var(--ink);
+    transform:translateX(100%);
+    transition:transform .45s var(--ease);
+    will-change:transform;
+  }
+  .screen.active{transform:translateX(0)}
+  .screen.behind{transform:translateX(-18%)}
+  .screen.home{transform:translateX(0)}
+  .screen.home.behind{transform:translateX(-12%);filter:brightness(.6)}
+
+  /* ===== TOP BAR ===== */
+  .topbar{
+    height:64px;flex:0 0 64px;display:flex;align-items:center;justify-content:space-between;
+    padding:0 18px;border-bottom:1px solid var(--line);
+    background:linear-gradient(180deg, rgba(58,20,29,.25), transparent);
+    position:relative;z-index:2;
+  }
+  .topbar h1{
+    margin:0;font-family:"Instrument Serif",serif;font-style:italic;font-weight:400;
+    font-size:30px;letter-spacing:.2px;color:var(--cream);
+  }
+  .topbar h1 .dot{color:var(--gold)}
+  .topbar .actions{display:flex;gap:6px}
+  .icon-btn{
+    width:38px;height:38px;border-radius:50%;display:grid;place-items:center;
+    color:var(--cream-dim);
+    transition:background .2s, color .2s, transform .2s;
+  }
+  .icon-btn:hover{background:rgba(241,230,209,.06);color:var(--cream)}
+  .icon-btn:active{transform:scale(.94)}
+  .icon-btn svg{width:20px;height:20px;stroke-width:1.6}
+
+  /* ===== HOME ===== */
+  .hero{
+    padding:14px 22px 10px;
+  }
+  .hero .greeting{
+    font-family:"Instrument Serif",serif;font-style:italic;font-size:38px;line-height:1.05;
+    color:var(--cream);
+  }
+  .hero .greeting .accent{color:var(--gold)}
+  .hero .sub{
+    margin-top:6px;color:var(--whisper);font-size:13px;letter-spacing:.02em;
+  }
+
+  .chats{flex:1;overflow:auto;padding:8px 0 100px;scrollbar-width:none}
+  .chats::-webkit-scrollbar{display:none}
+
+  /* swipe container: holds the action layer + the sliding row */
+  .chat-row-wrap{
+    position:relative;
+    overflow:hidden;
+    border-bottom:1px solid var(--line);
+    background:var(--ink);
+  }
+  .chat-row-wrap.dissolving{
+    max-height:0;opacity:0;border-bottom-color:transparent;
+    transition: max-height .35s var(--ease), opacity .25s, border-bottom-color .25s;
+  }
+  /* The action revealed under the row when swiped */
+  .chat-row-action{
+    position:absolute;inset:0;
+    display:flex;align-items:center;justify-content:flex-end;
+    padding:0 22px;
+    background:linear-gradient(90deg, transparent 0%, #6a1a1a 30%, #8a2a2a 100%);
+    color:#fff;
+    font-weight:500;font-size:14px;letter-spacing:.02em;
+    pointer-events:none;
+  }
+  .chat-row-action .label{display:flex;align-items:center;gap:8px;opacity:0;transform:translateX(10px);transition:opacity .2s, transform .2s}
+  .chat-row-wrap.armed .chat-row-action .label{opacity:1;transform:none}
+  .chat-row-action svg{width:18px;height:18px;stroke-width:1.7}
+
+  .chat-row{
+    display:flex;align-items:center;gap:14px;padding:12px 20px;
+    cursor:pointer;
+    transition:background .2s;
+    position:relative;
+    background:var(--ink);
+    /* the actual translation happens via inline transform from JS */
+    will-change:transform;
+    touch-action:pan-y;     /* let vertical scroll work naturally */
+    user-select:none;
+  }
+  .chat-row.swiping{transition:none}
+  .chat-row.snap{transition:transform .25s var(--ease)}
+  .chat-row:hover{background:rgba(241,230,209,.025)}
+  .chat-row.active::before{
+    content:"";position:absolute;left:0;top:8px;bottom:8px;width:3px;background:var(--gold);border-radius:0 3px 3px 0;
+  }
+
+  /* ===== THE SIGNATURE: STORY AVATARS ===== */
+  .avatar{
+    --c1: #d8a86a;
+    --c2: #e8a8b1;
+    --c3: #3a141d;
+    position:relative;
+    width:58px;height:58px;flex:0 0 58px;
+    border-radius:50%;
+    cursor:pointer;
+    overflow:hidden;
+    background:var(--ink-3);
+    isolation:isolate;
+  }
+  .avatar::after{
+    /* glossy rim */
+    content:"";position:absolute;inset:0;border-radius:inherit;pointer-events:none;
+    box-shadow:inset 0 1px 0 rgba(255,255,255,.08), inset 0 -10px 24px rgba(0,0,0,.25);
+  }
+  .avatar .glyph{
+    position:absolute;inset:0;display:grid;place-items:center;
+    font-family:"Instrument Serif",serif;font-style:italic;font-size:24px;color:rgba(241,230,209,.85);
+    text-shadow:0 1px 2px rgba(0,0,0,.4);
+    z-index:2;mix-blend-mode:overlay;
+  }
+  .avatar.muted{filter:saturate(.45) brightness(.7)}
+  .avatar.with-story{box-shadow:0 0 0 2px var(--ink), 0 0 0 4px var(--gold)}
+
+  /* Vibe 1: AURORA — rotating conic */
+  .vibe-aurora{
+    background: conic-gradient(from 0deg, var(--c1), var(--c2), var(--c3), var(--c1));
+    animation: spin 14s linear infinite;
+  }
+  /* Vibe 2: PULSE — radial breathing */
+  .vibe-pulse{ background: radial-gradient(circle at 50% 50%, var(--c1), var(--c2) 45%, var(--c3) 100%); }
+  .vibe-pulse::before{
+    content:"";position:absolute;inset:0;border-radius:50%;
+    background: radial-gradient(circle at 50% 50%, rgba(255,255,255,.25), transparent 60%);
+    animation: pulse 3.2s ease-in-out infinite;
+  }
+  /* Vibe 3: RIPPLE — expanding rings */
+  .vibe-ripple{ background: var(--c3); }
+  .vibe-ripple::before, .vibe-ripple::after{
+    content:"";position:absolute;inset:0;border-radius:50%;
+    background: radial-gradient(circle, var(--c1) 0%, transparent 40%);
+  }
+  .vibe-ripple::before{animation: ripple 3.6s ease-out infinite}
+  .vibe-ripple::after{animation: ripple 3.6s ease-out infinite 1.8s; background: radial-gradient(circle, var(--c2) 0%, transparent 40%);}
+  /* Vibe 4: DRIFT — meshlike flow via dual conic */
+  .vibe-drift{
+    background:
+      conic-gradient(from 90deg at 30% 30%, var(--c2), transparent 40%),
+      conic-gradient(from 270deg at 70% 70%, var(--c1), transparent 40%),
+      var(--c3);
+    background-size: 200% 200%, 200% 200%, 100% 100%;
+    animation: drift 11s ease-in-out infinite alternate;
+  }
+  /* Vibe 5: SPARKLE — twinkling dots */
+  .vibe-sparkle{
+    background: radial-gradient(circle at 30% 40%, var(--c3), #1a1014 100%);
+  }
+  .vibe-sparkle::before, .vibe-sparkle::after{
+    content:"";position:absolute;inset:0;border-radius:50%;
+    background-image:
+      radial-gradient(circle at 25% 30%, var(--c1) 1.2px, transparent 2px),
+      radial-gradient(circle at 60% 25%, var(--c2) 1.2px, transparent 2px),
+      radial-gradient(circle at 75% 65%, var(--c1) 1.5px, transparent 2.2px),
+      radial-gradient(circle at 35% 75%, var(--c2) 1.2px, transparent 2px),
+      radial-gradient(circle at 55% 55%, var(--c1) 1px, transparent 1.8px);
+    animation: twinkle 2.6s ease-in-out infinite;
+  }
+  .vibe-sparkle::after{animation-delay:-1.3s; transform: rotate(45deg)}
+  /* Vibe 6: BLOOM — petals scale */
+  .vibe-bloom{
+    background: var(--c3);
+  }
+  .vibe-bloom::before{
+    content:"";position:absolute;inset:8%;border-radius:50%;
+    background:
+      conic-gradient(from 0deg,
+        var(--c1) 0deg 30deg, transparent 30deg 60deg,
+        var(--c2) 60deg 90deg, transparent 90deg 120deg,
+        var(--c1) 120deg 150deg, transparent 150deg 180deg,
+        var(--c2) 180deg 210deg, transparent 210deg 240deg,
+        var(--c1) 240deg 270deg, transparent 270deg 300deg,
+        var(--c2) 300deg 330deg, transparent 330deg 360deg);
+    animation: bloom 4.5s ease-in-out infinite;
+    filter: blur(2px);
+  }
+
+  @keyframes spin { to { transform: rotate(360deg) } }
+  @keyframes pulse { 0%,100% { transform: scale(.85); opacity:.5 } 50% { transform: scale(1.05); opacity:.95 } }
+  @keyframes ripple {
+    0% { transform: scale(.2); opacity: .9 }
+    100% { transform: scale(1.4); opacity: 0 }
+  }
+  @keyframes drift {
+    0% { background-position: 0% 0%, 100% 100%, 0 0 }
+    100% { background-position: 100% 50%, 0% 50%, 0 0 }
+  }
+  @keyframes twinkle { 0%,100% { opacity: .25 } 50% { opacity: 1 } }
+  @keyframes bloom {
+    0%,100% { transform: scale(.7) rotate(0deg) }
+    50% { transform: scale(1.05) rotate(60deg) }
+  }
+
+  /* Chat row content */
+  .row-body{flex:1;min-width:0}
+  .row-head{display:flex;justify-content:space-between;align-items:baseline;gap:8px}
+  .row-name{font-weight:500;color:var(--cream);font-size:16px;letter-spacing:.005em;
+    white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:200px;}
+  .row-time{font-size:11px;color:var(--whisper);font-family:"JetBrains Mono",monospace;flex-shrink:0;letter-spacing:.02em}
+  .row-preview{display:flex;align-items:center;gap:6px;margin-top:3px;color:var(--cream-dim);font-size:13.5px;line-height:1.3;
+    white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}
+  .row-preview .you{color:var(--whisper);font-family:"JetBrains Mono",monospace;font-size:11px}
+  .row-badge{
+    min-width:18px;height:18px;padding:0 6px;border-radius:9px;
+    background:var(--gold);color:var(--ink);font-size:11px;font-weight:600;
+    display:grid;place-items:center;font-family:"JetBrains Mono",monospace;
+  }
+
+  /* Empty state */
+  .empty{
+    flex:1;display:flex;flex-direction:column;align-items:center;justify-content:center;
+    text-align:center;padding:0 32px;
+  }
+  .empty .mark{
+    width:120px;height:120px;border-radius:50%;
+    background: conic-gradient(from 220deg, #d8a86a, #e8a8b1, #3a141d, #d8a86a);
+    animation: spin 18s linear infinite;
+    position:relative;margin-bottom:30px;
+    box-shadow:0 20px 60px -10px rgba(216,168,106,.35);
+  }
+  .empty .mark::after{
+    content:"W";position:absolute;inset:0;display:grid;place-items:center;
+    font-family:"Instrument Serif",serif;font-style:italic;font-size:56px;color:var(--cream);
+    mix-blend-mode:overlay;
+  }
+  .empty h2{font-family:"Instrument Serif",serif;font-style:italic;font-size:34px;margin:0 0 8px;font-weight:400;letter-spacing:.2px}
+  .empty p{color:var(--whisper);margin:0 0 28px;font-size:14px;line-height:1.6;max-width:280px}
+
+  /* ===== FAB ===== */
+  .fab{
+    position:absolute;bottom:30px;
+    height:60px;padding:0 22px;border-radius:30px;
+    background:var(--gold);color:var(--ink);
+    font-weight:600;font-size:15px;letter-spacing:.02em;
+    display:flex;align-items:center;gap:8px;
+    box-shadow:0 16px 40px -12px rgba(216,168,106,.6), 0 0 0 1px rgba(0,0,0,.15);
+    transition:transform .2s var(--ease), box-shadow .2s, opacity .25s;
+    z-index:5;
+  }
+  .fab.right{right:22px}
+  .fab.left{left:22px;background:var(--ink-3);color:var(--cream);box-shadow:0 16px 40px -12px rgba(0,0,0,.5), inset 0 0 0 1px var(--line-2)}
+  .fab.left:hover{background:var(--velvet);color:var(--cream)}
+  .fab.hidden-fab{opacity:0;pointer-events:none;transform:translateY(20px)}
+  .fab:hover{transform:translateY(-2px);box-shadow:0 22px 48px -12px rgba(216,168,106,.7), 0 0 0 1px rgba(0,0,0,.15)}
+  .fab.left:hover{box-shadow:0 22px 48px -12px rgba(0,0,0,.6), inset 0 0 0 1px rgba(241,230,209,.2)}
+  .fab:active{transform:translateY(0) scale(.97)}
+  .fab svg{width:20px;height:20px;stroke-width:2}
+
+  /* ===== NEW / QR SCREEN ===== */
+  .pair-wrap{flex:1;display:flex;flex-direction:column;align-items:center;justify-content:center;padding:24px;text-align:center}
+  .pair-wrap h2{font-family:"Instrument Serif",serif;font-style:italic;font-size:36px;margin:0 0 8px;font-weight:400}
+  .pair-wrap .lede{color:var(--whisper);font-size:14px;margin:0 0 32px;max-width:300px;line-height:1.55}
+  .qr-card{
+    background:var(--cream);
+    padding:22px;border-radius:24px;
+    box-shadow:0 30px 60px -20px rgba(216,168,106,.35), 0 0 0 1px rgba(241,230,209,.1);
+    position:relative;
+  }
+  .qr-card .qr{width:220px;height:220px;display:grid;place-items:center}
+  .qr-card .qr img{display:block}
+  .qr-card .qr canvas{display:block}
+  .qr-code-text{
+    margin-top:24px;
+    font-family:"JetBrains Mono",monospace;
+    font-size:13px;letter-spacing:.18em;color:var(--cream-dim);
+  }
+
+  /* portrait picker (new-chat) */
+  .portrait-row{
+    display:flex;align-items:center;gap:10px;
+    overflow-x:auto;padding:4px 2px;
+    scrollbar-width:none;
+  }
+  .portrait-row::-webkit-scrollbar{display:none}
+  .portrait-pick{
+    width:54px;height:54px;flex:0 0 54px;border-radius:50%;
+    cursor:pointer;
+    transition:transform .15s, box-shadow .15s;
+    position:relative;
+    overflow:hidden;
+  }
+  .portrait-pick:hover{transform:scale(1.06)}
+  .portrait-pick.selected{box-shadow:0 0 0 2px var(--ink), 0 0 0 4px var(--gold)}
+  .portrait-pick.selfie-btn{
+    background:var(--ink-3);border:1.5px dashed var(--line-2);
+    display:grid;place-items:center;color:var(--cream-dim);
+    transition:border-color .2s, color .2s;
+  }
+  .portrait-pick.selfie-btn:hover{border-color:var(--gold);color:var(--cream)}
+  .portrait-pick.selfie-btn svg{width:22px;height:22px;stroke-width:1.6}
+  .portrait-pick.selfie-btn.selected{border:0}
+  .portrait-pick.selfie-btn img{width:100%;height:100%;object-fit:cover;border-radius:50%}
+
+  /* QR fade-in */
+  .qr-card.appearing{opacity:0;transform:translateY(8px) scale(.97);transition:opacity .35s var(--ease), transform .35s var(--ease)}
+  .qr-card.appearing.in{opacity:1;transform:none}
+
+  /* story create kind toggle */
+  .kind-toggle{
+    display:flex;gap:6px;background:var(--ink-3);border:1px solid var(--line);
+    border-radius:14px;padding:4px;margin-bottom:14px;
+  }
+  .kind-toggle button{
+    flex:1;height:38px;border-radius:10px;font-size:13px;color:var(--cream-dim);
+    display:flex;align-items:center;justify-content:center;gap:6px;
+    transition:background .2s, color .2s;
+  }
+  .kind-toggle button svg{width:16px;height:16px;stroke-width:1.7}
+  .kind-toggle button.active{background:var(--velvet);color:var(--cream)}
+
+  .story-preview img,.story-preview video{
+    position:absolute;inset:0;width:100%;height:100%;object-fit:cover;border-radius:inherit;
+  }
+  .story-preview .ptxt{position:relative;z-index:2}
+  .story-preview.has-media .placeholder{display:none}
+
+  .story-canvas img, .story-canvas video{
+    position:absolute;inset:0;width:100%;height:100%;object-fit:contain;background:#000;
+  }
+  .story-canvas .story-text-overlay{
+    position:absolute;left:0;right:0;bottom:80px;text-align:center;padding:0 24px;
+    font-family:"Instrument Serif",serif;font-style:italic;font-size:28px;color:#fff;
+    text-shadow:0 4px 24px rgba(0,0,0,.7);
+    z-index:2;
+  }
+
+  /* avatar image variant */
+  .avatar.has-image img{
+    position:absolute;inset:0;width:100%;height:100%;object-fit:cover;border-radius:50%;z-index:1;
+  }
+  .avatar.has-image .glyph{display:none}
+
+  /* onboarding handle field */
+  .onboard .handle-pre{
+    margin:24px 0 0;display:flex;flex-direction:column;gap:8px;
+  }
+  .onboard .handle-pre label{font-size:11px;color:var(--whisper);letter-spacing:.14em;text-transform:uppercase;font-weight:500}
+  .onboard .handle-pre input{
+    height:48px;padding:0 16px;border-radius:14px;
+    background:var(--ink-2);border:1px solid var(--line);
+    font-size:15px;color:var(--cream);font-family:"JetBrains Mono",monospace;
+    transition:border-color .2s;
+  }
+  .onboard .handle-pre input:focus{border-color:var(--gold);outline:0}
+  .onboard .go:disabled{opacity:.4;cursor:not-allowed}
+  .qr-code-text strong{color:var(--cream);font-weight:500}
+
+  .pair-actions{display:flex;flex-direction:column;gap:10px;margin-top:30px;width:100%;max-width:300px}
+  .btn{
+    height:52px;border-radius:26px;display:flex;align-items:center;justify-content:center;gap:8px;
+    font-weight:500;font-size:15px;letter-spacing:.02em;
+    transition:transform .15s, background .2s, border-color .2s;
+  }
+  .btn:active{transform:scale(.98)}
+  .btn-primary{background:var(--gold);color:var(--ink)}
+  .btn-primary:hover{background:#e2b577}
+  .btn-ghost{background:transparent;color:var(--cream);border:1px solid var(--line-2)}
+  .btn-ghost:hover{background:rgba(241,230,209,.04);border-color:rgba(241,230,209,.22)}
+  .btn-quiet{color:var(--cream-dim);font-size:13px}
+  .btn-quiet:hover{color:var(--cream)}
+
+  /* ===== PAIR SETUP (after scan) ===== */
+  .setup-wrap{padding:24px 22px;flex:1;overflow:auto}
+  .setup-wrap h2{font-family:"Instrument Serif",serif;font-style:italic;font-size:30px;margin:0 0 4px;font-weight:400}
+  .setup-wrap .sub{color:var(--whisper);font-size:13.5px;margin:0 0 24px}
+
+  .field{margin-bottom:18px}
+  .field label{display:block;font-size:11px;color:var(--whisper);letter-spacing:.14em;text-transform:uppercase;margin-bottom:6px;font-weight:500}
+  .input{
+    width:100%;height:48px;padding:0 16px;border-radius:14px;
+    background:var(--ink-2);border:1px solid var(--line);
+    font-size:15px;color:var(--cream);
+    transition:border-color .2s, background .2s;
+  }
+  .input:focus{border-color:var(--gold);background:var(--ink-3)}
+  .input.mono{font-family:"JetBrains Mono",monospace;font-size:13.5px;letter-spacing:.02em}
+
+  /* Vibe picker */
+  .vibe-grid{display:grid;grid-template-columns:repeat(6,1fr);gap:8px;margin-top:6px}
+  .vibe-pick{
+    aspect-ratio:1;border-radius:50%;cursor:pointer;
+    transition:transform .2s, box-shadow .2s;
+    position:relative;
+  }
+  .vibe-pick:hover{transform:scale(1.06)}
+  .vibe-pick.selected{box-shadow:0 0 0 2px var(--ink), 0 0 0 4px var(--gold)}
+
+  /* Color picker */
+  .color-row{display:flex;gap:10px;margin-top:8px;flex-wrap:wrap}
+  .swatch{width:32px;height:32px;border-radius:50%;cursor:pointer;transition:transform .15s;position:relative}
+  .swatch:hover{transform:scale(1.1)}
+  .swatch.selected::after{
+    content:"";position:absolute;inset:-4px;border-radius:50%;border:1.5px solid var(--cream);
+  }
+
+  /* ===== CHAT SCREEN ===== */
+  .chat-head{
+    height:64px;flex:0 0 64px;display:flex;align-items:center;gap:12px;padding:0 12px 0 6px;
+    border-bottom:1px solid var(--line);
+    background:linear-gradient(180deg, rgba(58,20,29,.4), rgba(26,16,20,.95));
+    backdrop-filter:blur(10px);
+    position:relative;z-index:2;
+  }
+  .chat-head .who{flex:1;min-width:0}
+  .chat-head .who .n{font-weight:500;font-size:15.5px;color:var(--cream);
+    white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+  .chat-head .who .h{font-family:"JetBrains Mono",monospace;font-size:11px;color:var(--whisper);letter-spacing:.02em}
+
+  .messages{
+    flex:1;overflow-y:auto;padding:16px 16px 24px;
+    display:flex;flex-direction:column;gap:6px;
+    scrollbar-width:none;
+    background:
+      radial-gradient(800px 400px at 100% 0%, rgba(58,20,29,.25), transparent 60%),
+      var(--ink);
+  }
+  .messages::-webkit-scrollbar{display:none}
+
+  .day-divider{
+    text-align:center;color:var(--whisper);font-size:10.5px;
+    font-family:"JetBrains Mono",monospace;letter-spacing:.18em;text-transform:uppercase;
+    margin:14px 0 10px;
+  }
+
+  .bubble{
+    max-width:78%;padding:10px 14px;border-radius:20px;
+    font-size:14.5px;line-height:1.4;
+    word-wrap:break-word;overflow-wrap:break-word;
+    animation: bubbleIn .35s var(--ease);
+  }
+  @keyframes bubbleIn { from { transform: translateY(8px); opacity: 0 } to { transform: none; opacity: 1 } }
+  .bubble.me{align-self:flex-end;background:var(--gold);color:var(--ink);border-bottom-right-radius:6px}
+  .bubble.them{align-self:flex-start;background:var(--them);color:var(--cream);border-bottom-left-radius:6px;border:1px solid var(--line)}
+  .bubble.same-me + .bubble.me{border-top-right-radius:6px;margin-top:-3px}
+  .bubble.same-them + .bubble.them{border-top-left-radius:6px;margin-top:-3px}
+  .bubble .meta{font-size:10px;opacity:.55;margin-top:4px;font-family:"JetBrains Mono",monospace;letter-spacing:.04em;display:flex;gap:4px;align-items:center}
+  .bubble.them .meta{color:var(--whisper)}
+
+  /* media bubbles */
+  .bubble.media{padding:4px;overflow:hidden}
+  .bubble.media .ph{
+    height:160px;border-radius:16px;
+    background:linear-gradient(135deg, var(--velvet), var(--ink-3));
+    display:grid;place-items:center;
+    color:var(--cream-dim);font-size:12px;
+    position:relative;overflow:hidden;
+  }
+  .bubble.media .ph::before{
+    content:"";position:absolute;inset:0;
+    background:
+      radial-gradient(circle at 30% 30%, rgba(216,168,106,.25), transparent 50%),
+      radial-gradient(circle at 70% 70%, rgba(232,168,177,.18), transparent 50%);
+  }
+  .bubble.media .ph span{position:relative;z-index:1}
+
+  .bubble.audio{display:flex;align-items:center;gap:10px;padding:10px 14px;min-width:180px}
+  .bubble.audio .play{
+    width:32px;height:32px;border-radius:50%;background:rgba(16,10,12,.18);display:grid;place-items:center;color:var(--ink);
+  }
+  .bubble.them.audio .play{background:rgba(241,230,209,.1);color:var(--cream)}
+  .bubble.audio .wave{flex:1;display:flex;align-items:center;gap:2px;height:24px}
+  .bubble.audio .wave i{width:2px;background:currentColor;border-radius:2px;opacity:.6}
+  .bubble.audio .dur{font-family:"JetBrains Mono",monospace;font-size:10.5px;opacity:.7}
+
+  .bubble.location{padding:6px}
+  .bubble.location .map{
+    height:120px;border-radius:14px;
+    background:
+      linear-gradient(135deg, #1a2a2e 0%, #2a3a3e 50%, #1a2a2e 100%);
+    position:relative;overflow:hidden;
+  }
+  .bubble.location .map::before{
+    content:"";position:absolute;inset:0;
+    background-image:
+      linear-gradient(rgba(241,230,209,.05) 1px, transparent 1px),
+      linear-gradient(90deg, rgba(241,230,209,.05) 1px, transparent 1px);
+    background-size:18px 18px;
+  }
+  .bubble.location .pin{
+    position:absolute;left:50%;top:50%;transform:translate(-50%,-100%);
+    color:var(--gold);
+  }
+  .bubble.location .loc-label{padding:8px 6px 4px;font-size:13px;color:var(--cream)}
+  .bubble.them.location .loc-label{color:var(--cream)}
+
+  .bubble.contact{padding:10px 14px;display:flex;align-items:center;gap:10px;min-width:200px}
+  .bubble.contact .ico{width:36px;height:36px;border-radius:50%;background:rgba(16,10,12,.15);display:grid;place-items:center}
+  .bubble.them.contact .ico{background:rgba(241,230,209,.08)}
+  .bubble.contact .ct-name{font-weight:600;font-size:13.5px;line-height:1.2}
+  .bubble.contact .ct-handle{font-family:"JetBrains Mono",monospace;font-size:11px;opacity:.7;margin-top:2px}
+
+  /* Composer */
+  .composer{
+    flex:0 0 auto;padding:10px 12px 16px;
+    border-top:1px solid var(--line);
+    background:var(--ink-2);
+    display:flex;align-items:flex-end;gap:8px;
+  }
+  .attach-btn{
+    width:42px;height:42px;border-radius:50%;display:grid;place-items:center;
+    background:var(--ink-3);color:var(--cream-dim);
+    transition:background .2s, color .2s, transform .2s;
+    flex-shrink:0;
+  }
+  .attach-btn:hover{background:var(--velvet);color:var(--cream)}
+  .attach-btn svg{width:18px;height:18px;stroke-width:1.8}
+
+  .input-shell{
+    flex:1;background:var(--ink-3);border-radius:22px;
+    padding:8px 12px;display:flex;align-items:center;gap:6px;min-height:44px;
+    border:1px solid var(--line);
+    transition:border-color .2s;
+  }
+  .input-shell:focus-within{border-color:var(--velvet-2)}
+  .text-input{
+    flex:1;background:transparent;border:0;outline:0;color:var(--cream);
+    font-size:15px;resize:none;max-height:120px;min-height:24px;line-height:1.4;
+    font-family:inherit;padding:4px 0;
+  }
+  .send-btn{
+    width:42px;height:42px;border-radius:50%;display:grid;place-items:center;
+    background:var(--gold);color:var(--ink);flex-shrink:0;
+    transition:transform .15s, background .2s, opacity .2s;
+  }
+  .send-btn:disabled{opacity:.3;cursor:not-allowed}
+  .send-btn:not(:disabled):hover{background:#e2b577}
+  .send-btn:not(:disabled):active{transform:scale(.92)}
+
+  /* Attach sheet */
+  .attach-sheet{
+    position:absolute;left:12px;right:12px;bottom:86px;
+    background:var(--ink-3);border:1px solid var(--line-2);
+    border-radius:20px;padding:14px;
+    display:grid;grid-template-columns:repeat(4,1fr);gap:6px;
+    transform:translateY(20px);opacity:0;pointer-events:none;
+    transition:transform .25s var(--ease), opacity .2s;
+    box-shadow:0 -10px 40px -10px rgba(0,0,0,.6);
+    z-index:3;
+  }
+  .attach-sheet.open{transform:translateY(0);opacity:1;pointer-events:auto}
+  .attach-item{
+    display:flex;flex-direction:column;align-items:center;gap:6px;padding:10px 4px;border-radius:12px;
+    transition:background .2s;cursor:pointer;
+  }
+  .attach-item:hover{background:rgba(241,230,209,.04)}
+  .attach-item .ico{
+    width:44px;height:44px;border-radius:50%;display:grid;place-items:center;
+  }
+  .attach-item .lbl{font-size:11px;color:var(--cream-dim)}
+  .attach-item .ico svg{width:20px;height:20px;stroke-width:1.7;color:var(--cream)}
+  .attach-item.media .ico{background:linear-gradient(135deg,#3a141d,#e8a8b1)}
+  .attach-item.audio .ico{background:linear-gradient(135deg,#3a141d,#d8a86a)}
+  .attach-item.location .ico{background:linear-gradient(135deg,#1a4a3e,#8aa882)}
+  .attach-item.contact .ico{background:linear-gradient(135deg,#3a141d,#8fb3c8)}
+  .attach-item.socials .ico{background:linear-gradient(135deg,#3a141d,#d8a86a)}
+  .attach-item.story .ico{background:linear-gradient(135deg,#d8a86a,#e8a8b1)}
+  .attach-item.identity .ico{background:linear-gradient(135deg,#3a141d,#cccccc)}
+  .attach-item.gif .ico{background:linear-gradient(135deg,#3a141d,#8fb3c8)}
+
+  /* ===== STORY VIEWER ===== */
+  .story-screen{background:#000}
+  .story-bars{
+    position:absolute;top:12px;left:12px;right:12px;display:flex;gap:4px;z-index:5;
+  }
+  .story-bars .bar{flex:1;height:2.5px;background:rgba(255,255,255,.25);border-radius:2px;overflow:hidden;position:relative}
+  .story-bars .bar .fill{position:absolute;inset:0;background:#fff;transform-origin:left;transform:scaleX(0)}
+  .story-bars .bar.active .fill{animation: storyProgress 5s linear forwards}
+  .story-bars .bar.done .fill{transform:scaleX(1)}
+  @keyframes storyProgress { to { transform: scaleX(1) } }
+
+  .story-head{
+    position:absolute;top:28px;left:18px;right:18px;display:flex;align-items:center;gap:10px;z-index:5;
+  }
+  .story-head .av{width:38px;height:38px;flex-shrink:0}
+  .story-head .name{color:#fff;font-size:14px;font-weight:500}
+  .story-head .time{color:rgba(255,255,255,.6);font-size:11px;font-family:"JetBrains Mono",monospace}
+  .story-close{margin-left:auto;color:#fff;width:34px;height:34px;border-radius:50%;display:grid;place-items:center;background:rgba(0,0,0,.3)}
+
+  .story-canvas{
+    position:absolute;inset:0;display:grid;place-items:center;
+  }
+  .story-text{
+    font-family:"Instrument Serif",serif;font-style:italic;
+    font-size:48px;line-height:1.1;color:#fff;text-align:center;padding:0 32px;
+    text-shadow: 0 4px 30px rgba(0,0,0,.6);
+    animation: storyFade .5s var(--ease);
+  }
+  @keyframes storyFade { from { opacity:0; transform: scale(.95) } to { opacity:1; transform:none } }
+
+  /* ===== STORY CREATE ===== */
+  .story-create-wrap{flex:1;display:flex;flex-direction:column;padding:20px;gap:14px}
+  .story-create-wrap h2{font-family:"Instrument Serif",serif;font-style:italic;font-size:28px;margin:0;font-weight:400}
+  .story-preview{
+    flex:1;border-radius:20px;min-height:300px;
+    display:grid;place-items:center;padding:24px;
+    position:relative;overflow:hidden;
+  }
+  .story-preview .ptxt{
+    font-family:"Instrument Serif",serif;font-style:italic;font-size:32px;line-height:1.15;color:#fff;text-align:center;
+    text-shadow: 0 2px 18px rgba(0,0,0,.4);
+  }
+  .story-preview .placeholder{color:rgba(255,255,255,.4);font-size:14px;font-style:italic}
+
+  .story-textarea{
+    width:100%;background:var(--ink-2);border:1px solid var(--line);
+    border-radius:14px;padding:14px;color:var(--cream);font-size:15px;
+    min-height:80px;resize:none;line-height:1.4;
+  }
+  .story-textarea:focus{border-color:var(--gold)}
+
+  /* ===== SETTINGS ===== */
+  .settings-wrap{padding:20px 22px;flex:1;overflow:auto}
+  .settings-wrap h2{font-family:"Instrument Serif",serif;font-style:italic;font-size:30px;margin:0 0 4px;font-weight:400}
+  .settings-wrap .group{margin-top:24px}
+  .settings-wrap .group-title{font-size:11px;color:var(--whisper);letter-spacing:.14em;text-transform:uppercase;margin-bottom:8px;font-weight:500}
+  .settings-row{
+    display:flex;align-items:center;gap:12px;padding:14px 0;border-bottom:1px solid var(--line);
+  }
+  .settings-row .lbl{flex:1;font-size:14.5px}
+  .settings-row .val{color:var(--whisper);font-size:13px;font-family:"JetBrains Mono",monospace}
+
+  /* Toast */
+  .toast{
+    position:absolute;top:80px;left:50%;transform:translateX(-50%) translateY(-20px);
+    background:var(--ink-3);border:1px solid var(--line-2);
+    padding:10px 16px;border-radius:24px;
+    color:var(--cream);font-size:13px;
+    box-shadow:0 10px 30px -10px rgba(0,0,0,.5);
+    opacity:0;pointer-events:none;
+    transition:transform .3s var(--ease), opacity .3s;
+    z-index:50;
+    max-width:80%;text-align:center;
+  }
+  .toast.show{opacity:1;transform:translateX(-50%) translateY(0)}
+
+  /* Ephemeral storage banner — shown when persistence is refused AND quota suggests incognito.
+     Advisory only, dismissible, non-blocking (sits above topbar, doesn't cover composer/FAB). */
+  .ephemeral-banner{
+    position:absolute;top:0;left:0;right:0;
+    background:linear-gradient(90deg,rgba(58,20,29,.95),rgba(34,12,17,.95));
+    border-bottom:1px solid rgba(216,168,106,.35);
+    color:var(--cream);font-size:11.5px;letter-spacing:.02em;
+    padding:9px 36px 9px 14px;line-height:1.4;
+    z-index:60;display:flex;align-items:center;justify-content:center;gap:8px;
+    text-align:center;
+  }
+  .ephemeral-banner .glyph{color:var(--gold);font-size:13px}
+  .ephemeral-banner button{
+    position:absolute;right:8px;top:50%;transform:translateY(-50%);
+    background:transparent;border:0;color:var(--whisper);
+    font-size:18px;line-height:1;padding:4px 8px;cursor:pointer;
+  }
+  .ephemeral-banner button:hover{color:var(--cream)}
+
+  /* Tap area for scan-sim button */
+  .scan-hint{
+    margin-top:14px;font-size:11px;color:var(--whisper);letter-spacing:.04em;line-height:1.5;
+    max-width:260px;text-align:center;
+  }
+  .scan-hint code{font-family:"JetBrains Mono",monospace;background:rgba(241,230,209,.05);padding:2px 6px;border-radius:4px;color:var(--cream-dim)}
+
+  /* Connection chip */
+  .chip{
+    display:inline-flex;align-items:center;gap:5px;
+    padding:3px 8px;border-radius:10px;
+    font-family:"JetBrains Mono",monospace;font-size:10px;letter-spacing:.04em;
+    background:rgba(138,168,130,.12);color:var(--leaf);
+  }
+  .chip .dot{width:5px;height:5px;border-radius:50%;background:currentColor;animation:pulse 2s ease-in-out infinite}
+
+  /* Story create vibe selection styles reuse vibe-pick */
+
+  /* Onboarding overlay (first time) */
+  .onboard{
+    position:absolute;inset:0;z-index:60;background:var(--ink);
+    display:flex;flex-direction:column;padding:40px 32px;
+    transition:opacity .5s, transform .5s var(--ease);
+  }
+  .onboard.hidden{opacity:0;transform:translateY(-20px);pointer-events:none}
+  .onboard .logo-block{margin-top:auto;text-align:center}
+  .onboard .logo-block .mark{
+    width:140px;height:140px;border-radius:50%;
+    background:conic-gradient(from 220deg, #d8a86a, #e8a8b1, #3a141d, #d8a86a);
+    animation:spin 18s linear infinite;
+    margin:0 auto 28px;position:relative;
+    box-shadow:0 30px 80px -20px rgba(216,168,106,.5);
+  }
+  .onboard .logo-block .mark::after{
+    content:"W";position:absolute;inset:0;display:grid;place-items:center;
+    font-family:"Instrument Serif",serif;font-style:italic;font-size:64px;color:var(--cream);mix-blend-mode:overlay;
+  }
+  .onboard h1{
+    font-family:"Instrument Serif",serif;font-style:italic;font-size:48px;line-height:1;margin:0 0 12px;font-weight:400;text-align:center;letter-spacing:-.01em;
+  }
+  .onboard .tag{color:var(--whisper);text-align:center;font-size:14px;margin:0 0 auto;letter-spacing:.02em}
+  .onboard .feats{margin:auto 0;display:flex;flex-direction:column;gap:18px}
+  .onboard .feat{display:flex;align-items:flex-start;gap:14px}
+  .onboard .feat .ic{width:36px;height:36px;border-radius:10px;background:var(--velvet);display:grid;place-items:center;color:var(--gold);flex-shrink:0}
+  .onboard .feat .ic svg{width:18px;height:18px;stroke-width:1.7}
+  .onboard .feat .tx .t{font-size:14px;color:var(--cream);font-weight:500}
+  .onboard .feat .tx .d{font-size:12.5px;color:var(--whisper);margin-top:2px;line-height:1.45}
+  .onboard .go{margin-top:32px}
+
+  /* hide x-input arrows */
+  input[type="number"]::-webkit-outer-spin-button,
+  input[type="number"]::-webkit-inner-spin-button{-webkit-appearance:none;margin:0}
+
+  /* ===== MODAL ===== */
+  .modal-backdrop{
+    position:absolute;inset:0;z-index:200;
+    background:rgba(10,6,8,.7);backdrop-filter:blur(4px);
+    display:grid;place-items:center;padding:24px;
+    opacity:0;pointer-events:none;
+    transition:opacity .2s;
+  }
+  .modal-backdrop.open{opacity:1;pointer-events:auto}
+  .modal{
+    background:var(--ink-2);border:1px solid var(--line-2);
+    border-radius:22px;padding:24px;max-width:320px;width:100%;
+    transform:scale(.94);transition:transform .25s var(--ease);
+    box-shadow:0 30px 60px -20px rgba(0,0,0,.7);
+  }
+  .modal-backdrop.open .modal{transform:scale(1)}
+  .modal-title{font-family:"Instrument Serif",serif;font-style:italic;font-size:26px;line-height:1.1;margin-bottom:8px}
+  .modal-body{color:var(--cream-dim);font-size:14px;line-height:1.5;margin-bottom:20px}
+  .modal-actions{display:flex;gap:8px}
+  .modal-actions .btn{flex:1;height:46px;font-size:14px}
+</style>
+</head>
+<body>
+  <div class="frame" id="frame">
+    <!-- ONBOARDING -->
+    <div class="onboard" id="onboard">
+      <div class="logo-block">
+        <div class="mark"></div>
+        <h1>Whisperoni<span style="color:var(--gold)">.</span></h1>
+        <p class="tag">chat without the noise</p>
+      </div>
+      <div class="feats">
+        <div class="feat">
+          <div class="ic"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor"><rect x="3" y="3" width="7" height="7"/><rect x="14" y="3" width="7" height="7"/><rect x="3" y="14" width="7" height="7"/><line x1="14" y1="14" x2="21" y2="14"/><line x1="14" y1="21" x2="21" y2="21"/><line x1="17.5" y1="14" x2="17.5" y2="21"/></svg></div>
+          <div class="tx"><div class="t">No account. Ever.</div><div class="d">A QR code is all you need. Scan, chat, done.</div></div>
+        </div>
+        <div class="feat">
+          <div class="ic"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor"><circle cx="12" cy="12" r="9"/><circle cx="12" cy="12" r="4"/></svg></div>
+          <div class="tx"><div class="t">A handle for each chat</div><div class="d">No name, no profile. Just what you want to be called here, with them.</div></div>
+        </div>
+        <div class="feat">
+          <div class="ic"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor"><path d="M12 2v4M12 18v4M4.93 4.93l2.83 2.83M16.24 16.24l2.83 2.83M2 12h4M18 12h4M4.93 19.07l2.83-2.83M16.24 7.76l2.83-2.83"/></svg></div>
+          <div class="tx"><div class="t">Stories that live in the avatar</div><div class="d">No row of circles. Your story breathes inside your portrait.</div></div>
+        </div>
+      </div>
+      <div class="handle-pre">
+        <label>pick a default handle (you can change it per chat)</label>
+        <input id="onboardHandle" placeholder="@you" maxlength="24" autocomplete="off" autocapitalize="off" autocorrect="off" spellcheck="false" />
+      </div>
+      <button class="btn btn-primary go" id="onboardGo" disabled>begin</button>
+    </div>
+
+    <div class="screens">
+      <!-- HOME -->
+      <section class="screen home active" id="screen-home">
+        <header class="topbar">
+          <h1>Whisperoni<span class="dot">.</span></h1>
+          <div class="actions">
+            <button class="icon-btn" id="openSettings" title="Settings">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1 0 2.83 2 2 0 0 1-2.83 0l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 1 1-4 0v-.09a1.65 1.65 0 0 0-1-1.51 1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 1 1-2.83-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 1 1 0-4h.09a1.65 1.65 0 0 0 1.51-1 1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 1 1 2.83-2.83l.06.06a1.65 1.65 0 0 0 1.82.33h0a1.65 1.65 0 0 0 1-1.51V3a2 2 0 1 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 1 1 2.83 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82v0a1.65 1.65 0 0 0 1.51 1H21a2 2 0 1 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z"/></svg>
+            </button>
+          </div>
+        </header>
+        <div class="hero">
+          <div class="greeting"><span class="accent">good evening,</span><br/>nothing to say to no one.</div>
+          <div class="sub" id="heroSub">— start a new conversation by tapping <span style="color:var(--gold)">+ new</span></div>
+        </div>
+        <div class="chats" id="chatsList">
+          <!-- empty/chat rows rendered here -->
+        </div>
+        <button class="fab right" id="newChatBtn">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor"><path d="M12 5v14M5 12h14"/></svg>
+          new
+        </button>
+        <button class="fab left hidden-fab" id="storyFab" title="Add to your story">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor"><polygon points="12 2 15 9 22 9 17 14 19 22 12 18 5 22 7 14 2 9 9 9 12 2"/></svg>
+          story
+        </button>
+      </section>
+
+      <!-- NEW (handle → portrait → QR auto) -->
+      <section class="screen" id="screen-new">
+        <header class="topbar">
+          <button class="icon-btn" data-back>
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor"><path d="M15 18l-6-6 6-6"/></svg>
+          </button>
+          <h1 style="font-size:18px;font-style:normal;font-family:'DM Sans',sans-serif;font-weight:500">Start a chat</h1>
+          <div style="width:38px"></div>
+        </header>
+        <div class="pair-wrap" style="padding-top:14px;justify-content:flex-start">
+          <div style="width:100%;max-width:320px">
+            <label style="display:block;font-size:11px;color:var(--whisper);letter-spacing:.14em;text-transform:uppercase;margin-bottom:8px;font-weight:500;text-align:left">they'll see you as</label>
+            <input class="input mono" id="myHandleField" placeholder="@something" maxlength="24" autocomplete="off" autocapitalize="off" autocorrect="off" spellcheck="false" />
+
+            <label style="display:block;font-size:11px;color:var(--whisper);letter-spacing:.14em;text-transform:uppercase;margin:22px 0 8px;font-weight:500;text-align:left">your portrait</label>
+            <div class="portrait-row" id="portraitRow">
+              <button class="portrait-pick selfie-btn" id="selfieBtn" title="take a selfie">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor"><path d="M23 19a2 2 0 0 1-2 2H3a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h4l2-3h6l2 3h4a2 2 0 0 1 2 2z"/><circle cx="12" cy="13" r="4"/></svg>
+              </button>
+              <div class="portrait-pick avatar vibe-aurora" data-vibe="aurora" style="--c1:#d8a86a;--c2:#b88a4a;--c3:#3a141d"></div>
+              <div class="portrait-pick avatar vibe-pulse"  data-vibe="pulse"  style="--c1:#e8a8b1;--c2:#c88891;--c3:#3a141d"></div>
+              <div class="portrait-pick avatar vibe-ripple" data-vibe="ripple" style="--c1:#8fb3c8;--c2:#6f93a8;--c3:#1a1a2e"></div>
+              <div class="portrait-pick avatar vibe-drift"  data-vibe="drift"  style="--c1:#8aa882;--c2:#6a8862;--c3:#1a2a1e"></div>
+              <div class="portrait-pick avatar vibe-sparkle" data-vibe="sparkle" style="--c1:#d8a86a;--c2:#e8a8b1;--c3:#1a1014"></div>
+              <div class="portrait-pick avatar vibe-bloom"  data-vibe="bloom"  style="--c1:#e8a8b1;--c2:#8fb3c8;--c3:#3a141d"></div>
+            </div>
+            <input type="file" accept="image/*" capture="user" id="selfieInput" style="display:none" />
+          </div>
+
+          <div class="qr-card appearing" id="qrCard" style="margin-top:30px">
+            <div class="qr" id="qrTarget"></div>
+            <div class="qr-code-text">code <strong id="codeText">— — — —</strong></div>
+          </div>
+
+          <div class="pair-actions" id="pairActions" style="opacity:0;pointer-events:none;transition:opacity .3s">
+            <button class="btn btn-primary" id="simulateScan">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" style="width:18px;height:18px"><rect x="3" y="3" width="7" height="7"/><rect x="14" y="3" width="7" height="7"/><rect x="3" y="14" width="7" height="7"/><line x1="14" y1="14" x2="21" y2="14"/><line x1="14" y1="21" x2="21" y2="21"/><line x1="17.5" y1="14" x2="17.5" y2="21"/></svg>
+              simulate them scanning
+            </button>
+          </div>
+          <div class="scan-hint">
+            In production they point a camera here. For the preview, tap simulate after the QR appears.
+          </div>
+        </div>
+      </section>
+
+      <!-- CHAT -->
+      <section class="screen" id="screen-chat">
+        <header class="chat-head">
+          <button class="icon-btn" data-back>
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor"><path d="M15 18l-6-6 6-6"/></svg>
+          </button>
+          <div id="chatAvatarWrap" style="width:42px;height:42px;flex:0 0 42px;cursor:pointer"></div>
+          <div class="who">
+            <div class="n" id="chatHandle">@—</div>
+            <div class="h"><span class="chip"><span class="dot"></span>linked</span></div>
+          </div>
+          <button class="icon-btn" id="chatInfo">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor"><circle cx="12" cy="12" r="9"/><line x1="12" y1="16" x2="12" y2="12"/><line x1="12" y1="8" x2="12.01" y2="8"/></svg>
+          </button>
+        </header>
+        <div class="messages" id="messages"></div>
+        <div class="attach-sheet" id="attachSheet">
+          <div class="attach-item media" data-attach="media"><div class="ico"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor"><rect x="3" y="3" width="18" height="18" rx="2"/><circle cx="8.5" cy="8.5" r="1.5"/><polyline points="21 15 16 10 5 21"/></svg></div><div class="lbl">photo</div></div>
+          <div class="attach-item audio" data-attach="audio"><div class="ico"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor"><path d="M12 2a3 3 0 0 0-3 3v7a3 3 0 0 0 6 0V5a3 3 0 0 0-3-3z"/><path d="M19 10v2a7 7 0 0 1-14 0v-2M12 19v3"/></svg></div><div class="lbl">voice</div></div>
+          <div class="attach-item location" data-attach="location"><div class="ico"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor"><path d="M21 10c0 7-9 13-9 13s-9-6-9-13a9 9 0 0 1 18 0z"/><circle cx="12" cy="10" r="3"/></svg></div><div class="lbl">place</div></div>
+          <div class="attach-item contact" data-attach="contact"><div class="ico"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor"><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/></svg></div><div class="lbl">contact</div></div>
+          <div class="attach-item socials" data-attach="socials"><div class="ico"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor"><rect x="2" y="2" width="20" height="20" rx="5"/><path d="M16 11.37A4 4 0 1 1 12.63 8 4 4 0 0 1 16 11.37z"/><line x1="17.5" y1="6.5" x2="17.51" y2="6.5"/></svg></div><div class="lbl">socials</div></div>
+          <div class="attach-item gif" data-attach="gif"><div class="ico"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor"><rect x="3" y="3" width="18" height="18" rx="2"/><text x="6" y="16" font-size="8" font-family="monospace" fill="currentColor" stroke="none">GIF</text></svg></div><div class="lbl">gif</div></div>
+          <div class="attach-item identity" data-attach="identity"><div class="ico"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor"><circle cx="12" cy="8" r="4"/><path d="M4 21v-1a8 8 0 0 1 16 0v1"/></svg></div><div class="lbl">identity</div></div>
+          <div class="attach-item story" data-attach="story"><div class="ico"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor"><polygon points="12 2 15 9 22 9 17 14 19 22 12 18 5 22 7 14 2 9 9 9 12 2"/></svg></div><div class="lbl">story</div></div>
+        </div>
+        <div class="composer">
+          <button class="attach-btn" id="attachBtn">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor"><path d="M12 5v14M5 12h14"/></svg>
+          </button>
+          <div class="input-shell">
+            <textarea class="text-input" id="messageInput" rows="1" placeholder="message"></textarea>
+            <button class="icon-btn" id="voiceBtn" title="hold to record">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor"><path d="M12 2a3 3 0 0 0-3 3v7a3 3 0 0 0 6 0V5a3 3 0 0 0-3-3z"/><path d="M19 10v2a7 7 0 0 1-14 0v-2M12 19v3"/></svg>
+            </button>
+          </div>
+          <button class="send-btn" id="sendBtn" disabled>
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M22 2L11 13M22 2l-7 20-4-9-9-4 20-7z"/></svg>
+          </button>
+        </div>
+      </section>
+
+      <!-- STORY VIEWER -->
+      <section class="screen story-screen" id="screen-story-view">
+        <div class="story-bars" id="storyBars"></div>
+        <div class="story-head">
+          <div id="storyAvWrap" style="width:38px;height:38px;flex:0 0 38px"></div>
+          <div>
+            <div class="name" id="storyHandle">@—</div>
+            <div class="time" id="storyTime">—</div>
+          </div>
+          <button class="story-close" data-back>
+            <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor"><path d="M18 6L6 18M6 6l12 12"/></svg>
+          </button>
+        </div>
+        <div class="story-canvas" id="storyCanvas"></div>
+      </section>
+
+      <!-- STORY CREATE -->
+      <section class="screen" id="screen-story-create">
+        <header class="topbar">
+          <button class="icon-btn" data-back>
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor"><path d="M15 18l-6-6 6-6"/></svg>
+          </button>
+          <h1 style="font-size:18px;font-style:normal;font-family:'DM Sans',sans-serif;font-weight:500">Your story</h1>
+          <button class="btn-quiet" id="postStory" style="font-size:14px;font-weight:500;color:var(--gold)">post</button>
+        </header>
+        <div class="story-create-wrap">
+          <div class="kind-toggle" id="storyKindToggle">
+            <button class="active" data-kind="text">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor"><path d="M4 7V4h16v3M9 20h6M12 4v16"/></svg>
+              text
+            </button>
+            <button data-kind="image">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor"><rect x="3" y="3" width="18" height="18" rx="2"/><circle cx="8.5" cy="8.5" r="1.5"/><polyline points="21 15 16 10 5 21"/></svg>
+              photo
+            </button>
+            <button data-kind="video">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor"><polygon points="23 7 16 12 23 17 23 7"/><rect x="1" y="5" width="15" height="14" rx="2"/></svg>
+              video
+            </button>
+          </div>
+
+          <div class="story-preview" id="storyPreview">
+            <div class="ptxt" id="storyPreviewText"><span class="placeholder">your words live here</span></div>
+          </div>
+
+          <textarea class="story-textarea" id="storyText" placeholder="say one thing. it stays for 24 hours."></textarea>
+
+          <input type="file" accept="image/*" capture="environment" id="storyImageInput" style="display:none" />
+          <input type="file" accept="video/*" capture="environment" id="storyVideoInput" style="display:none" />
+
+          <div id="storyBgWrap">
+            <div class="group-title" style="font-size:11px;color:var(--whisper);letter-spacing:.14em;text-transform:uppercase;margin-bottom:8px;font-weight:500">background</div>
+            <div class="color-row" id="storyBgRow">
+              <div class="swatch selected" data-bg="linear-gradient(135deg,#3a141d,#d8a86a)" style="background:linear-gradient(135deg,#3a141d,#d8a86a)"></div>
+              <div class="swatch" data-bg="linear-gradient(135deg,#1a2a3e,#8fb3c8)" style="background:linear-gradient(135deg,#1a2a3e,#8fb3c8)"></div>
+              <div class="swatch" data-bg="linear-gradient(135deg,#1a3a2e,#8aa882)" style="background:linear-gradient(135deg,#1a3a2e,#8aa882)"></div>
+              <div class="swatch" data-bg="linear-gradient(135deg,#3a1a2e,#e8a8b1)" style="background:linear-gradient(135deg,#3a1a2e,#e8a8b1)"></div>
+              <div class="swatch" data-bg="linear-gradient(135deg,#100a0c,#3a141d)" style="background:linear-gradient(135deg,#100a0c,#3a141d)"></div>
+              <div class="swatch" data-bg="linear-gradient(135deg,#3a2814,#e8c8a8)" style="background:linear-gradient(135deg,#3a2814,#e8c8a8)"></div>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <!-- SETTINGS -->
+      <section class="screen" id="screen-settings">
+        <header class="topbar">
+          <button class="icon-btn" data-back>
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor"><path d="M15 18l-6-6 6-6"/></svg>
+          </button>
+          <h1 style="font-size:18px;font-style:normal;font-family:'DM Sans',sans-serif;font-weight:500">Settings</h1>
+          <div style="width:38px"></div>
+        </header>
+        <div class="settings-wrap">
+          <h2>about you</h2>
+          <p class="sub" style="color:var(--whisper);font-size:13.5px;margin:0 0 24px">Your default handle pre-fills when you start a new chat. You can still change it per chat.</p>
+          <div class="field">
+            <label>default handle</label>
+            <input class="input mono" id="defaultHandle" placeholder="@you" />
+          </div>
+
+          <div class="group">
+            <div class="group-title">data</div>
+            <div class="settings-row">
+              <div class="lbl">chats stored</div>
+              <div class="val" id="statChats">0</div>
+            </div>
+            <div class="settings-row">
+              <div class="lbl">messages</div>
+              <div class="val" id="statMsgs">0</div>
+            </div>
+            <button class="btn btn-ghost" style="margin-top:16px;width:100%" id="wipeBtn">wipe everything</button>
+          </div>
+
+          <div class="group">
+            <div class="group-title">the truth</div>
+            <p style="color:var(--whisper);font-size:12.5px;line-height:1.6;margin:0">
+              This is a prototype. All data lives on this device only — no account, no server.
+              In a real shipping version, an end-to-end encrypted relay would be needed to deliver messages between devices.
+              The QR pairing flow is real to the UX, simulated to the network.
+            </p>
+          </div>
+        </div>
+      </section>
+    </div>
+
+    <div class="toast" id="toast"></div>
+
+    <!-- in-app confirm modal (window.confirm is blocked in many webviews) -->
+    <div class="modal-backdrop" id="modalBackdrop">
+      <div class="modal" id="modal">
+        <div class="modal-title" id="modalTitle">are you sure</div>
+        <div class="modal-body" id="modalBody">this cannot be undone.</div>
+        <div class="modal-actions">
+          <button class="btn btn-ghost" id="modalCancel">cancel</button>
+          <button class="btn btn-primary" id="modalOk" style="background:#c44">wipe</button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+<script>
+/* =========================================================
+   WHISPERONI — prototype
+   storage layer + screen router + chat engine + mock peer
+   ========================================================= */
+
+/* ---------------- backend config ---------------- */
+// To point the client at your deployed Worker, set in DevTools console:
+//   localStorage.setItem('whisperoni:apiBase', 'https://whisperoni-api.yoursubdomain.workers.dev')
+// then reload. When unset, the app runs fully local with a mock peer.
+// Same-origin deployment: default to window.location.origin so fetch + WebSocket both work
+// against the Worker that serves this HTML. A localStorage override remains for the legacy
+// "point this artifact at a separate Worker" mode (artifact deployments).
+const WHISPERONI_API_BASE = (
+  (typeof localStorage !== 'undefined' &&
+   (localStorage.getItem('whisperoni:apiBase') || localStorage.getItem('velvet:apiBase'))) ||
+  (typeof window !== 'undefined' ? window.location.origin : '')
+);
+const SYNC_ENABLED = !!WHISPERONI_API_BASE;
+
+/* ---------------- crypto (P-256 ECDH + HKDF + AES-GCM) ---------------- */
+const Crypto = {
+  // generate an ECDH keypair, exportable as raw pubkey + private JWK
+  async genKeyPair() {
+    const kp = await crypto.subtle.generateKey({name:'ECDH', namedCurve:'P-256'}, true, ['deriveBits']);
+    const pubRaw = new Uint8Array(await crypto.subtle.exportKey('raw', kp.publicKey));
+    const privJwk = await crypto.subtle.exportKey('jwk', kp.privateKey);
+    return { pubKey: b64(pubRaw), privJwk };
+  },
+  async importPriv(jwk) {
+    return await crypto.subtle.importKey('jwk', jwk, {name:'ECDH', namedCurve:'P-256'}, false, ['deriveBits']);
+  },
+  async importPub(b64Pub) {
+    return await crypto.subtle.importKey('raw', unb64(b64Pub), {name:'ECDH', namedCurve:'P-256'}, false, []);
+  },
+  // derive 32-byte shared secret
+  async deriveShared(privJwk, peerPubB64) {
+    const priv = await Crypto.importPriv(privJwk);
+    const pub  = await Crypto.importPub(peerPubB64);
+    const bits = await crypto.subtle.deriveBits({name:'ECDH', public: pub}, priv, 256);
+    return new Uint8Array(bits);
+  },
+  // derive a directional chain key via HKDF; "label" makes the two directions different
+  async chainKey(sharedSecret, label) {
+    const baseKey = await crypto.subtle.importKey('raw', sharedSecret, 'HKDF', false, ['deriveKey']);
+    return await crypto.subtle.deriveKey(
+      { name:'HKDF', hash:'SHA-256', salt: new Uint8Array(32), info: new TextEncoder().encode('whisperoni/'+label) },
+      baseKey,
+      { name:'AES-GCM', length: 256 },
+      false,
+      ['encrypt','decrypt']
+    );
+  },
+  async encrypt(chainKey, counter, plaintext) {
+    const iv = new Uint8Array(12);
+    new DataView(iv.buffer).setBigUint64(4, BigInt(counter));
+    const ct = await crypto.subtle.encrypt({name:'AES-GCM', iv}, chainKey, new TextEncoder().encode(plaintext));
+    return b64(new Uint8Array(ct));
+  },
+  async decrypt(chainKey, counter, b64Ct) {
+    const iv = new Uint8Array(12);
+    new DataView(iv.buffer).setBigUint64(4, BigInt(counter));
+    const pt = await crypto.subtle.decrypt({name:'AES-GCM', iv}, chainKey, unb64(b64Ct));
+    return new TextDecoder().decode(pt);
+  },
+};
+function b64(u8) { let s=''; for (const b of u8) s+=String.fromCharCode(b); return btoa(s); }
+function unb64(s) { const bin=atob(s); const u=new Uint8Array(bin.length); for(let i=0;i<bin.length;i++)u[i]=bin.charCodeAt(i); return u; }
+
+/* ---------------- sync engine (Worker + Durable Object) ---------------- */
+const Sync = {
+  sockets: new Map(), // chatId -> {ws, sendChain, recvChain, sendCounter, recvCounter}
+
+  async pairAsHost(code, kp) {
+    // POST /pair/init {code, pubkey}; then poll /pair/wait until partner completes.
+    const r = await fetch(`${WHISPERONI_API_BASE}/pair/init`, {
+      method:'POST', headers:{'content-type':'application/json'},
+      body: JSON.stringify({code, pubkey: kp.pubKey}),
+    });
+    if (!r.ok) throw new Error('pair init failed');
+    return await Sync.waitForPartner(code);
+  },
+
+  async waitForPartner(code, deadlineMs = 5*60*1000) {
+    const start = Date.now();
+    while (Date.now() - start < deadlineMs) {
+      const r = await fetch(`${WHISPERONI_API_BASE}/pair/wait?code=${encodeURIComponent(code)}`);
+      if (r.ok) {
+        const data = await r.json();
+        if (!data.pending) return data; // {chatId, peerPubkey}
+      }
+      await new Promise(res => setTimeout(res, 2000));
+    }
+    throw new Error('partner did not arrive');
+  },
+
+  async pairAsJoiner(code, kp) {
+    const r = await fetch(`${WHISPERONI_API_BASE}/pair/complete`, {
+      method:'POST', headers:{'content-type':'application/json'},
+      body: JSON.stringify({code, pubkey: kp.pubKey}),
+    });
+    if (!r.ok) throw new Error('pair complete failed');
+    return await r.json(); // {chatId, peerPubkey}
+  },
+
+  async connectChat(chat, onMessage) {
+    if (Sync.sockets.has(chat.id)) return Sync.sockets.get(chat.id);
+    // derive directional chains; both sides must label deterministically using the lexicographic order of pubkeys
+    const shared = await Crypto.deriveShared(chat.myPrivJwk, chat.peerPubKey);
+    const [lo, hi] = [chat.myPubKey, chat.peerPubKey].sort();
+    const sendLabel = chat.myPubKey === lo ? 'A->B' : 'B->A';
+    const recvLabel = chat.myPubKey === lo ? 'B->A' : 'A->B';
+    const sendChain = await Crypto.chainKey(shared, sendLabel);
+    const recvChain = await Crypto.chainKey(shared, recvLabel);
+
+    const wsBase = WHISPERONI_API_BASE.replace(/^http/, 'ws');
+    const ws = new WebSocket(`${wsBase}/chat/${chat.id}`);
+    const conn = { ws, sendChain, recvChain, sendCounter: chat.sendCounter || 0, recvCounter: chat.recvCounter || 0, ready: false, opened: false };
+    Sync.sockets.set(chat.id, conn);
+
+    ws.onopen = () => {
+      conn.opened = true;
+      ws.send(JSON.stringify({ type:'identify', pubkey: chat.myPubKey }));
+    };
+    ws.onmessage = async (ev) => {
+      const data = JSON.parse(ev.data);
+      if (data.type === 'ready') { conn.ready = true; return; }
+      if (data.type === 'message') {
+        try {
+          const plaintext = await Crypto.decrypt(recvChain, data.seq, data.payload);
+          const parsed = JSON.parse(plaintext);
+          await onMessage(chat.id, parsed, data.seq, data.t);
+        } catch (e) {
+          console.warn('decrypt failed for seq', data.seq, e);
+        }
+        return;
+      }
+      if (data.type === 'ack') { /* could update local delivery state */ return; }
+      if (data.type === 'dissolved') {
+        // Server says the other side ended the chat. Mark ended locally; don't auto-wipe.
+        await handleIncomingDissolve(chat.id, data.by);
+        return;
+      }
+    };
+    ws.onclose = async () => {
+      Sync.sockets.delete(chat.id);
+      // WS-upgrade-404 detection. A WebSocket upgrade that returns a non-101 (the DO's
+      // "not initialized" 404 after deleteAll) closes the socket before onopen fires.
+      // This is the *deterministic* dissolve signal — KV is eventually consistent across
+      // PoPs, so /status may transiently say tombstoned:false even after a real dissolve.
+      // Cross-check with /status; if it confirms, treat as incoming dissolve. If /status
+      // says false, the close-before-open is ambiguous (network blip vs KV lag) — leave
+      // the chat alone and let the next bootstrap retry catch a propagated tombstone.
+      if (conn.opened) return;
+      const c = State.chats.find(x => x.id === chat.id);
+      if (!c || c.ended) return;
+      const base = WHISPERONI_API_BASE || window.location.origin;
+      try {
+        const r = await fetch(`${base}/chat/${chat.id}/status`);
+        if (r.ok) {
+          const j = await r.json().catch(() => ({}));
+          if (j.tombstoned) await handleIncomingDissolve(chat.id, 'them');
+        }
+      } catch { /* worker unreachable; will retry on next reconnect */ }
+    };
+    ws.onerror = (e) => console.warn('ws error', e);
+    return conn;
+  },
+
+  async sendOver(chat, payload) {
+    const conn = Sync.sockets.get(chat.id);
+    if (!conn || conn.ws.readyState !== WebSocket.OPEN) throw new Error('not connected');
+    const seq = ++conn.sendCounter;
+    const ciphertext = await Crypto.encrypt(conn.sendChain, seq, JSON.stringify(payload));
+    conn.ws.send(JSON.stringify({ type:'send', seq, payload: ciphertext }));
+    chat.sendCounter = seq;
+    await saveChat(chat);
+  },
+};
+
+const $  = (s, r=document) => r.querySelector(s);
+const $$ = (s, r=document) => Array.from(r.querySelectorAll(s));
+
+/* ---------------- persistence (IndexedDB, per-chat records) ---------------- */
+// Storage layout (single object store 'kv' in database 'whisperoni-store'):
+//   profile             → { defaultHandle, ... }
+//   onboarded           → boolean
+//   chat-index          → [chatId, chatId, ...]      (order + existence only)
+//   chat:<chatId>       → full chat object per chat  (writes touch one record)
+//   pendingDissolves    → [{chatId, pubkey}, ...]    (orphan-cleanup queue)
+//
+// Per-chat records avoid the serialize-everything-on-every-send perf cliff once stories
+// carry embedded media. saveChat(c) writes ONE record; loadAllChats() reads N in parallel.
+
+const STORAGE_KEYS = { profile: 'profile', seen: 'onboarded' };
+const IDB_DB_NAME = 'whisperoni-store';
+
+const IDB = (() => {
+  const STORE = 'kv';
+  const VERSION = 1;
+  let dbPromise = null;
+  function open() {
+    if (dbPromise) return dbPromise;
+    if (typeof indexedDB === 'undefined') return Promise.reject(new Error('no IndexedDB'));
+    dbPromise = new Promise((resolve, reject) => {
+      const req = indexedDB.open(IDB_DB_NAME, VERSION);
+      req.onupgradeneeded = () => {
+        const db = req.result;
+        if (!db.objectStoreNames.contains(STORE)) db.createObjectStore(STORE);
+      };
+      req.onsuccess = () => resolve(req.result);
+      req.onerror = () => { dbPromise = null; reject(req.error); };
+      req.onblocked = () => console.warn('IDB upgrade blocked by another tab');
+    });
+    return dbPromise;
+  }
+  async function get(k) {
+    const db = await open();
+    return new Promise((resolve, reject) => {
+      const tx = db.transaction(STORE, 'readonly');
+      const req = tx.objectStore(STORE).get(k);
+      req.onsuccess = () => resolve(req.result);
+      req.onerror = () => reject(req.error);
+    });
+  }
+  async function put(k, v) {
+    const db = await open();
+    return new Promise((resolve, reject) => {
+      const tx = db.transaction(STORE, 'readwrite');
+      tx.objectStore(STORE).put(v, k);
+      tx.oncomplete = () => resolve();
+      tx.onerror = () => reject(tx.error);
+      tx.onabort = () => reject(tx.error || new Error('idb abort'));
+    });
+  }
+  async function del(k) {
+    const db = await open();
+    return new Promise((resolve, reject) => {
+      const tx = db.transaction(STORE, 'readwrite');
+      tx.objectStore(STORE).delete(k);
+      tx.oncomplete = () => resolve();
+      tx.onerror = () => reject(tx.error);
+      tx.onabort = () => reject(tx.error || new Error('idb abort'));
+    });
+  }
+  function reset() {
+    if (dbPromise) { dbPromise.then(db => { try { db.close(); } catch {} }).catch(() => {}); }
+    dbPromise = null;
+  }
+  return { open, get, put, del, reset };
+})();
+
+// Fallback (in-memory) for environments without IndexedDB.
+const __mem = {};
+
+async function loadKey(k, fallback) {
+  try {
+    const v = await IDB.get(k);
+    return v === undefined ? fallback : v;
+  } catch (e) {
+    if (k in __mem) return __mem[k];
+    return fallback;
+  }
+}
+async function saveKey(k, v) {
+  try { await IDB.put(k, v); }
+  catch (e) { __mem[k] = v; console.warn('idb put fail', k, e); }
+}
+async function deleteKey(k) {
+  try { await IDB.del(k); }
+  catch (e) { delete __mem[k]; }
+}
+
+// Per-chat helpers.
+async function loadAllChats() {
+  const index = (await loadKey('chat-index', [])) || [];
+  const chats = await Promise.all(index.map(id => loadKey(`chat:${id}`, null)));
+  return chats.filter(c => c && c.id);
+}
+async function saveChat(c) {
+  if (!c || !c.id) return;
+  await saveKey(`chat:${c.id}`, c);
+  const index = (await loadKey('chat-index', [])) || [];
+  if (!index.includes(c.id)) {
+    index.push(c.id);
+    await saveKey('chat-index', index);
+  }
+}
+async function deleteChat(id) {
+  await deleteKey(`chat:${id}`);
+  const index = (await loadKey('chat-index', [])) || [];
+  const next = index.filter(x => x !== id);
+  if (next.length !== index.length) await saveKey('chat-index', next);
+}
+
+// Fan-out shim — kept so any overlooked saveChats() call-site degrades to "slow but correct"
+// instead of ReferenceError. Bulk sites (postStory, migration loop) can use this or iterate
+// saveChat themselves; both are correct.
+async function saveChats() {
+  await Promise.all(State.chats.map(saveChat));
+}
+
+/* ---------------- storage durability (persist + ephemeral banner) ---------------- */
+// Honesty UX: IndexedDB without navigator.storage.persist() can be evicted under disk pressure.
+// We request persistence post-onboarding (in init() after renderHome — NOT in dismissOnboard
+// which only fires for first-time users), and if persist() is refused AND the quota looks
+// suspiciously small (heuristic for incognito), we show a thin advisory banner.
+//
+// This is WARN, not RECOVER. It does not protect data — a private window will still wipe on
+// close regardless. The banner exists so the user knows that.
+let __bannerDismissed = false;  // in-memory only; never persisted (incognito wipe makes any
+                                // persisted dismiss flag a lie).
+
+async function assessStorageDurability() {
+  if (typeof navigator === 'undefined' || !navigator.storage || !navigator.storage.persisted) {
+    return { durable: false, ephemeral: false };
+  }
+  const already = await navigator.storage.persisted();
+  if (already) return { durable: true, ephemeral: false };
+  let ephemeral = false;
+  try {
+    const est = await navigator.storage.estimate();
+    // Heuristic only. Browsers fuzz the incognito quota to resist fingerprinting; <300MB is
+    // suspicious. Treat as advisory; NEVER branch behavior on this — only show/hide a banner.
+    ephemeral = est.quota !== undefined && est.quota < 300 * 1024 * 1024;
+  } catch {}
+  return { durable: false, ephemeral };
+}
+
+async function requestPersistence() {
+  if (typeof navigator === 'undefined' || !navigator.storage || !navigator.storage.persist) return;
+  try {
+    const granted = await navigator.storage.persist();
+    if (!granted) {
+      const { ephemeral } = await assessStorageDurability();
+      if (ephemeral) showEphemeralBanner();
+    }
+  } catch { /* permission denied or unsupported */ }
+}
+
+function showEphemeralBanner() {
+  if (__bannerDismissed) return;
+  if (document.getElementById('ephemeralBanner')) return;
+  const b = document.createElement('div');
+  b.id = 'ephemeralBanner';
+  b.className = 'ephemeral-banner';
+  b.innerHTML = '<span class="glyph">◇</span><span>looks like a private window — your chats may not survive closing it</span><button type="button" id="ephemeralBannerClose" aria-label="dismiss banner">×</button>';
+  document.body.appendChild(b);
+  const closeBtn = b.querySelector('#ephemeralBannerClose');
+  closeBtn.addEventListener('click', () => {
+    __bannerDismissed = true;
+    b.remove();
+  });
+}
+
+/* ---------------- state ---------------- */
+const State = {
+  profile: { defaultHandle: '' },
+  chats: [],          // [{id, handle (mine), peerHandle, vibe, peerColor, ...}]
+  currentChatId: null,
+  pendingPairCode: null,
+  attachOpen: false,
+  storyDraft: { text: '', bg: 'linear-gradient(135deg,#3a141d,#d8a86a)' },
+  onboarded: false,
+};
+
+// One-shot migration from window.storage (Anthropic artifact mode) → IDB. No-op once chat-index exists.
+async function migrateFromWindowStorage() {
+  if (typeof window === 'undefined' || !window.storage || typeof window.storage.get !== 'function') return;
+  const existing = await loadKey('chat-index', null);
+  if (existing !== null) return;
+  const tryGet = async (k) => {
+    try {
+      const r = await window.storage.get(k);
+      return r && r.value ? JSON.parse(r.value) : null;
+    } catch { return null; }
+  };
+  const oldProfile = (await tryGet('whisperoni:profile')) || (await tryGet('velvet:profile'));
+  const oldChats   = (await tryGet('whisperoni:chats'))   || (await tryGet('velvet:chats'));
+  const oldSeenRaw = await tryGet('whisperoni:onboarded');
+  const oldSeen    = oldSeenRaw !== null ? oldSeenRaw : await tryGet('velvet:onboarded');
+  if (oldProfile) await saveKey(STORAGE_KEYS.profile, oldProfile);
+  if (Array.isArray(oldChats)) {
+    for (const c of oldChats) if (c && c.id) await saveChat(c);
+  }
+  if (oldSeen !== null) await saveKey(STORAGE_KEYS.seen, oldSeen);
+  for (const k of ['whisperoni:profile','whisperoni:chats','whisperoni:onboarded','velvet:profile','velvet:chats','velvet:onboarded']) {
+    try { await window.storage.delete(k); } catch {}
+  }
+}
+
+async function bootstrap() {
+  await migrateFromWindowStorage();
+
+  State.profile   = await loadKey(STORAGE_KEYS.profile, { defaultHandle:'' });
+  State.onboarded = await loadKey(STORAGE_KEYS.seen, false);
+  State.chats     = await loadAllChats();
+
+  // schema migrations (idempotent) — Category B bulk write: save each touched chat
+  for (const c of State.chats) {
+    let touched = false;
+    if (c.myStory && !c.myStories) {
+      c.myStories = [{ id: uid(8), kind:'text', text: c.myStory.text, bg: c.myStory.bg, t: c.myStory.t }];
+      delete c.myStory;
+      touched = true;
+    }
+    if (!c.myStories) { c.myStories = []; touched = true; }
+    if (c.peerStory && !c.peerStories) {
+      c.peerStories = [{ id: uid(8), kind:'text', text: c.peerStory.text, bg: c.peerStory.bg, t: c.peerStory.t }];
+      delete c.peerStory;
+      touched = true;
+    }
+    if (!c.peerStories) { c.peerStories = []; touched = true; }
+    if (!c.peerStoriesViewed) { c.peerStoriesViewed = []; touched = true; }
+    if (!c.peerPortrait) {
+      c.peerPortrait = { kind:'vibe', vibe: c.vibe || vibeFromHandle(c.peerHandle||'@x'), color: c.peerColor || colorFromHandle(c.peerHandle||'@x') };
+      touched = true;
+    }
+    if (!c.myPortrait) {
+      c.myPortrait = { kind:'vibe', vibe: vibeFromHandle(c.myHandle||'@me'), color: colorFromHandle(c.myHandle||'@me') };
+      touched = true;
+    }
+    if (touched) await saveChat(c);
+  }
+}
+
+async function saveProfile() { await saveKey(STORAGE_KEYS.profile, State.profile); }
+
+/* ---------------- routing ---------------- */
+const SCREEN_STACK = ['home'];
+
+function showScreen(id, opts={}) {
+  const el = $('#screen-' + id);
+  if (!el) return;
+  const wasActive = el.classList.contains('active');
+  $$('.screen').forEach(s => s.classList.remove('active'));
+  $$('.screen').forEach(s => s.classList.remove('behind'));
+  el.classList.add('active');
+  if (opts.replace) {
+    SCREEN_STACK[SCREEN_STACK.length-1] = id;
+  } else if (!wasActive) {
+    SCREEN_STACK.push(id);
+  }
+  // place 'home' behind so the screen-stack feels physical
+  const homeEl = $('#screen-home');
+  if (id !== 'home') homeEl.classList.add('behind');
+}
+
+function goBack() {
+  if (SCREEN_STACK.length <= 1) { showScreen('home', {replace:true}); return; }
+  SCREEN_STACK.pop();
+  const next = SCREEN_STACK[SCREEN_STACK.length-1];
+  $$('.screen').forEach(s => s.classList.remove('active'));
+  $('#screen-' + next).classList.add('active');
+  if (next === 'home') $('#screen-home').classList.remove('behind');
+}
+
+/* ---------------- toast ---------------- */
+let toastTimer;
+function toast(msg) {
+  const t = $('#toast');
+  t.textContent = msg;
+  t.classList.add('show');
+  clearTimeout(toastTimer);
+  toastTimer = setTimeout(() => t.classList.remove('show'), 2200);
+}
+
+/* ---------------- helpers ---------------- */
+function uid(n=8) {
+  const a = 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789';
+  let s = ''; for (let i=0;i<n;i++) s += a[Math.floor(Math.random()*a.length)]; return s;
+}
+function nowISO() { return new Date().toISOString(); }
+function fmtTime(iso) {
+  const d = new Date(iso); const now = new Date();
+  const ms = now - d;
+  if (ms < 60_000) return 'now';
+  if (ms < 3600_000) return Math.floor(ms/60_000) + 'm';
+  if (ms < 86_400_000) return Math.floor(ms/3_600_000) + 'h';
+  if (ms < 604_800_000) return Math.floor(ms/86_400_000) + 'd';
+  return d.toLocaleDateString(undefined,{month:'short',day:'numeric'});
+}
+function dayLabel(iso) {
+  const d = new Date(iso); const today = new Date();
+  const isSameDay = d.toDateString() === today.toDateString();
+  if (isSameDay) return 'today';
+  const yest = new Date(today); yest.setDate(yest.getDate()-1);
+  if (d.toDateString() === yest.toDateString()) return 'yesterday';
+  return d.toLocaleDateString(undefined,{weekday:'long', month:'short', day:'numeric'});
+}
+function escapeHtml(s) {
+  return String(s).replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'})[c]);
+}
+
+/* ---------------- handle utilities ---------------- */
+const VIBES   = ['aurora','pulse','ripple','drift','sparkle','bloom'];
+const PALETTE = ['#d8a86a','#e8a8b1','#8fb3c8','#8aa882','#c9a8e8','#e8c8a8','#a8e8d8','#e8a8a8'];
+
+function hashStr(s) {
+  let h = 2166136261;
+  for (let i=0;i<s.length;i++) { h ^= s.charCodeAt(i); h = (h * 16777619) >>> 0; }
+  return h;
+}
+function vibeFromHandle(h)  { return VIBES[hashStr(h||'x') % VIBES.length]; }
+function colorFromHandle(h) { return PALETTE[hashStr(h||'x') % PALETTE.length]; }
+
+function normalizeHandle(raw) {
+  let v = (raw||'').trim().toLowerCase().replace(/\s+/g,'');
+  if (!v) return '';
+  if (!v.startsWith('@')) v = '@' + v;
+  // strip anything other than @, a-z, 0-9, _, .
+  v = '@' + v.slice(1).replace(/[^a-z0-9_.]/g,'');
+  return v.slice(0, 24);
+}
+
+// believable peer handles for the prototype's simulated other side
+const PEER_HANDLE_POOL = ['@yvo','@kai','@marg','@late_august','@m.','@noor','@bea','@oss','@lume','@cove','@iris.','@theo'];
+function pickPeerHandle() {
+  // avoid collision with existing peer handles in store
+  const used = new Set(State.chats.map(c => c.peerHandle));
+  const free = PEER_HANDLE_POOL.filter(h => !used.has(h));
+  const pool = free.length ? free : PEER_HANDLE_POOL;
+  return pool[Math.floor(Math.random()*pool.length)];
+}
+
+/* ---------------- avatars ---------------- */
+function avatarHTML({vibe='aurora', color='#d8a86a', handle='', portrait=null, withStory=false, muted=false, size=58}) {
+  const c1 = color;
+  const c2 = shade(color, -20);
+  const c3 = '#3a141d';
+
+  // portrait override: { kind:'selfie', dataUrl } takes precedence
+  if (portrait && portrait.kind === 'selfie' && portrait.dataUrl) {
+    const classes = ['avatar', 'has-image'];
+    if (withStory) classes.push('with-story');
+    if (muted) classes.push('muted');
+    return `<div class="${classes.join(' ')}" style="width:${size}px;height:${size}px;flex:0 0 ${size}px"><img src="${portrait.dataUrl}" alt=""/></div>`;
+  }
+  // explicit vibe portrait
+  if (portrait && portrait.kind === 'vibe') {
+    vibe  = portrait.vibe  || vibe;
+    color = portrait.color || color;
+  }
+
+  const classes = ['avatar', `vibe-${vibe}`];
+  if (withStory) classes.push('with-story');
+  if (muted) classes.push('muted');
+  const letter = (handle||'').replace(/^@/, '').charAt(0).toUpperCase();
+  const glyph = letter ? `<div class="glyph">${escapeHtml(letter)}</div>` : '';
+  return `<div class="${classes.join(' ')}" style="width:${size}px;height:${size}px;flex:0 0 ${size}px;--c1:${color};--c2:${shade(color,-20)};--c3:#3a141d">${glyph}</div>`;
+}
+function shade(hex, percent) {
+  // simple HSL-based shading
+  const num = parseInt(hex.slice(1),16);
+  let r=(num>>16)&0xff, g=(num>>8)&0xff, b=num&0xff;
+  const amt = percent/100;
+  r = Math.max(0,Math.min(255, Math.round(r + (amt<0? r*amt : (255-r)*amt))));
+  g = Math.max(0,Math.min(255, Math.round(g + (amt<0? g*amt : (255-g)*amt))));
+  b = Math.max(0,Math.min(255, Math.round(b + (amt<0? b*amt : (255-b)*amt))));
+  return '#' + ((1<<24) + (r<<16) + (g<<8) + b).toString(16).slice(1);
+}
+
+/* ---------------- render: home ---------------- */
+function renderHome() {
+  const list = $('#chatsList');
+  const sub  = $('#heroSub');
+  const greet = $('.hero .greeting');
+
+  // Update greeting based on time
+  const h = new Date().getHours();
+  const part = h<5 ? 'still up,' : h<12 ? 'good morning,' : h<18 ? 'good afternoon,' : 'good evening,';
+  greet.innerHTML = `<span class="accent">${part}</span><br/>${State.chats.length === 0 ? 'nothing to say to no one.' : 'where were we.'}`;
+
+  if (State.chats.length === 0) {
+    sub.innerHTML = '— tap <span style="color:var(--gold)">+ new</span> to invite someone';
+    list.innerHTML = `
+      <div class="empty">
+        <div class="mark"></div>
+        <h2>quiet here</h2>
+        <p>No accounts, no phone numbers, no algorithms. Just a code your friend can scan.</p>
+      </div>`;
+    return;
+  }
+
+  sub.innerHTML = `— ${State.chats.length} conversation${State.chats.length>1?'s':''}, ${State.chats.reduce((a,c)=>a+c.messages.length,0)} messages, all on this device`;
+
+  // sort by lastActive desc; chats marked .ended (peer dissolved) still appear but visually muted
+  const chats = State.chats.slice().sort((a,b) => new Date(b.lastActive||0) - new Date(a.lastActive||0));
+  list.innerHTML = chats.map(c => {
+    const last = c.messages[c.messages.length-1];
+    const previewText = c.ended ? 'chat ended' : (last ? messagePreview(last) : 'tap to say something');
+    const youPrefix = (!c.ended && last && last.from === 'me') ? `<span class="you">you ·</span> ` : '';
+    const time = last ? fmtTime(last.t) : fmtTime(c.created);
+    const unread = c.unread || 0;
+    const fresh = (c.peerStories||[]).filter(s => Date.now() - new Date(s.t).getTime() < 86_400_000);
+    const unviewed = fresh.filter(s => !(c.peerStoriesViewed||[]).includes(s.id));
+    const hasUnviewedStory = !c.ended && unviewed.length > 0;
+    const mutedCls = c.ended ? ' ended' : '';
+    return `
+      <div class="chat-row-wrap${mutedCls}" data-chat="${c.id}">
+        <div class="chat-row-action" aria-hidden="true">
+          <span class="label">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor"><polyline points="3 6 5 6 21 6"/><path d="M19 6l-1 14a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2L5 6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/></svg>
+            delete
+          </span>
+        </div>
+        <div class="chat-row" data-chat="${c.id}" style="${c.ended ? 'opacity:.55' : ''}">
+          ${avatarHTML({handle:c.peerHandle, portrait:c.peerPortrait, withStory:hasUnviewedStory, size:58, muted:c.ended})}
+          <div class="row-body">
+            <div class="row-head">
+              <div class="row-name">${escapeHtml(c.peerHandle)}${c.ended ? ' <span style="color:var(--whisper);font-size:11px;font-family:\'JetBrains Mono\',monospace;font-weight:400">· ended</span>' : ''}</div>
+              <div class="row-time">${time}</div>
+            </div>
+            <div class="row-preview">
+              <span style="flex:1;overflow:hidden;text-overflow:ellipsis">${youPrefix}${escapeHtml(previewText)}</span>
+              ${unread && !c.ended ? `<span class="row-badge">${unread>9?'9+':unread}</span>` : ''}
+            </div>
+          </div>
+        </div>
+      </div>`;
+  }).join('');
+
+  // toggle story FAB visibility
+  $('#storyFab').classList.toggle('hidden-fab', State.chats.length === 0);
+
+  // wire row events (click + swipe)
+  $$('#chatsList .chat-row-wrap').forEach(wrap => {
+    const row = wrap.querySelector('.chat-row');
+    const id  = wrap.dataset.chat;
+    attachSwipe(wrap, row, id);
+    row.addEventListener('click', e => {
+      // suppress click if a swipe just happened
+      if (wrap.__suppressClick) { wrap.__suppressClick = false; return; }
+      const chat = State.chats.find(c => c.id === id);
+      if (!chat) return;
+      if (e.target.closest('.avatar')) {
+        const fresh = (chat.peerStories||[]).filter(s => Date.now() - new Date(s.t).getTime() < 86_400_000);
+        if (fresh.length) { openStoryViewer(id, 'peer'); return; }
+      }
+      openChat(id);
+    });
+  });
+}
+
+function messagePreview(m) {
+  switch(m.kind) {
+    case 'text': return m.body;
+    case 'audio': return '🎤 voice — ' + m.duration + 's';
+    case 'media': return '📷 photo';
+    case 'location': return '📍 ' + (m.label || 'location');
+    case 'contact': return '👤 ' + (m.handle || 'contact');
+    case 'identity': return '🪪 identity card';
+    case 'socials': return '✦ socials';
+    case 'gif': return 'GIF';
+    case 'story-share': return '✦ story';
+    default: return '—';
+  }
+}
+
+/* ---------------- media helpers ---------------- */
+const Media = {
+  // Read a File as data URL
+  readFile(file) {
+    return new Promise((res, rej) => {
+      const r = new FileReader();
+      r.onload  = () => res(r.result);
+      r.onerror = () => rej(new Error('read failed'));
+      r.readAsDataURL(file);
+    });
+  },
+  // Downscale image to fit within maxEdge, encode as JPEG.
+  async downscaleImage(file, { maxEdge = 1080, quality = 0.85, square = false } = {}) {
+    const dataUrl = await Media.readFile(file);
+    return await new Promise((res, rej) => {
+      const img = new Image();
+      img.onload = () => {
+        let { width: w, height: h } = img;
+        if (square) {
+          const side = Math.min(w, h);
+          const sx = (w - side) / 2, sy = (h - side) / 2;
+          const target = Math.min(maxEdge, side);
+          const canvas = document.createElement('canvas');
+          canvas.width = target; canvas.height = target;
+          const ctx = canvas.getContext('2d');
+          ctx.drawImage(img, sx, sy, side, side, 0, 0, target, target);
+          res(canvas.toDataURL('image/jpeg', quality));
+          return;
+        }
+        const scale = Math.min(1, maxEdge / Math.max(w, h));
+        const tw = Math.round(w * scale), th = Math.round(h * scale);
+        const canvas = document.createElement('canvas');
+        canvas.width = tw; canvas.height = th;
+        canvas.getContext('2d').drawImage(img, 0, 0, tw, th);
+        res(canvas.toDataURL('image/jpeg', quality));
+      };
+      img.onerror = () => rej(new Error('image decode failed'));
+      img.src = dataUrl;
+    });
+  },
+  // Validate a video: returns { dataUrl, duration } or throws.
+  async checkVideo(file, { maxSeconds = 10, maxBytes = 2.5 * 1024 * 1024 } = {}) {
+    if (file.size > maxBytes) {
+      throw new Error('video too large for the prototype — would upload to R2 in production');
+    }
+    const dataUrl = await Media.readFile(file);
+    const duration = await new Promise((res, rej) => {
+      const v = document.createElement('video');
+      v.preload = 'metadata';
+      v.onloadedmetadata = () => res(v.duration);
+      v.onerror = () => rej(new Error('cannot read video'));
+      v.src = dataUrl;
+    });
+    if (duration > maxSeconds + 0.5) {
+      throw new Error(`video must be under ${maxSeconds}s — yours is ${duration.toFixed(1)}s`);
+    }
+    return { dataUrl, duration };
+  },
+};
+
+/* ---------------- new chat / QR flow ---------------- */
+async function openNewChat() {
+  // generate keypair eagerly so QR can include our pubkey when sync is on
+  State.pendingKeyPair = await Crypto.genKeyPair();
+  State.pendingPairCode = uid(6);
+  State.pendingPortrait = null;
+
+  $('#codeText').textContent = State.pendingPairCode.split('').join(' ');
+  $('#myHandleField').value = State.profile.defaultHandle || '';
+
+  // reset portrait selection visuals
+  $$('#portraitRow .portrait-pick').forEach(el => el.classList.remove('selected'));
+  const selfieBtn = $('#selfieBtn');
+  selfieBtn.innerHTML = `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor"><path d="M23 19a2 2 0 0 1-2 2H3a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h4l2-3h6l2 3h4a2 2 0 0 1 2 2z"/><circle cx="12" cy="13" r="4"/></svg>`;
+
+  // hide QR + actions until both fields are filled
+  $('#qrCard').classList.remove('in');
+  $('#qrCard').style.visibility = 'hidden';
+  $('#pairActions').style.opacity = 0;
+  $('#pairActions').style.pointerEvents = 'none';
+
+  showScreen('new');
+  setTimeout(() => {
+    const field = $('#myHandleField');
+    if (!field.value) field.focus();
+    else maybeShowQR(); // default handle already filled — they just need to pick a portrait
+  }, 300);
+}
+
+function maybeShowQR() {
+  const handle = normalizeHandle($('#myHandleField').value);
+  const portrait = State.pendingPortrait;
+  if (!handle || handle === '@' || !portrait) {
+    $('#qrCard').classList.remove('in');
+    $('#qrCard').style.visibility = 'hidden';
+    $('#pairActions').style.opacity = 0;
+    $('#pairActions').style.pointerEvents = 'none';
+    return;
+  }
+  // build QR payload
+  const code = State.pendingPairCode;
+  const kp   = State.pendingKeyPair;
+  const qrPayload = SYNC_ENABLED
+    ? `whisperoni://pair/${code}?pk=${encodeURIComponent(kp.pubKey)}`
+    : `whisperoni://pair/${code}`;
+
+  const target = $('#qrTarget');
+  target.innerHTML = '';
+  try {
+    new QRCode(target, {
+      text: qrPayload,
+      width: 220, height: 220,
+      colorDark: '#100a0c',
+      colorLight: '#f1e6d1',
+      correctLevel: QRCode.CorrectLevel.M,
+    });
+  } catch (e) {
+    target.innerHTML = `<div style="font-family:monospace;color:#100a0c;padding:20px">${code}</div>`;
+  }
+
+  $('#qrCard').style.visibility = 'visible';
+  requestAnimationFrame(() => $('#qrCard').classList.add('in'));
+  $('#pairActions').style.opacity = 1;
+  $('#pairActions').style.pointerEvents = 'auto';
+
+  // when sync is enabled, register host pubkey now and start waiting
+  if (SYNC_ENABLED && !State.pendingPairWaiter) {
+    State.pendingPairWaiter = (async () => {
+      try {
+        const result = await Sync.pairAsHost(code, kp);
+        await finalizeChat({
+          myHandle: handle,
+          myPortrait: State.pendingPortrait,
+          peerHandle: result.peerHandle || pickPeerHandle(),
+          peerPortrait: { kind:'vibe', vibe: vibeFromHandle(result.peerHandle||'@x'), color: colorFromHandle(result.peerHandle||'@x') },
+          chatId: result.chatId,
+          myKeyPair: kp,
+          peerPubKey: result.peerPubkey,
+        });
+      } catch (e) {
+        toast('pairing timed out — try again');
+      } finally { State.pendingPairWaiter = null; }
+    })();
+  }
+}
+
+async function simulateScanFromOtherSide() {
+  if (SYNC_ENABLED) {
+    toast('with backend enabled, the other device drives this step');
+    return;
+  }
+  const myHandle = normalizeHandle($('#myHandleField').value);
+  if (!myHandle || myHandle === '@' || !State.pendingPortrait) {
+    toast('pick a handle and a portrait first');
+    return;
+  }
+  const peerHandle = pickPeerHandle();
+
+  if (!State.profile.defaultHandle) {
+    State.profile.defaultHandle = myHandle;
+    await saveProfile();
+  }
+
+  await finalizeChat({
+    myHandle,
+    myPortrait: State.pendingPortrait,
+    peerHandle,
+    peerPortrait: { kind:'vibe', vibe: vibeFromHandle(peerHandle), color: colorFromHandle(peerHandle) },
+    chatId: uid(10),
+    myKeyPair: State.pendingKeyPair,
+    peerPubKey: null,
+  });
+}
+
+async function finalizeChat({ myHandle, myPortrait, peerHandle, peerPortrait, chatId, myKeyPair, peerPubKey }) {
+  if (!State.profile.defaultHandle) {
+    State.profile.defaultHandle = myHandle;
+    await saveProfile();
+  }
+
+  const chat = {
+    id: chatId,
+    myHandle,
+    peerHandle,
+    myPortrait:   myPortrait   || { kind:'vibe', vibe: vibeFromHandle(myHandle), color: colorFromHandle(myHandle) },
+    peerPortrait: peerPortrait || { kind:'vibe', vibe: vibeFromHandle(peerHandle), color: colorFromHandle(peerHandle) },
+    myPubKey:   myKeyPair ? myKeyPair.pubKey  : null,
+    myPrivJwk:  myKeyPair ? myKeyPair.privJwk : null,
+    peerPubKey,
+    sendCounter: 0,
+    recvCounter: 0,
+    // legacy fields preserved for cheap reads
+    vibe: peerPortrait?.vibe || vibeFromHandle(peerHandle),
+    peerColor: peerPortrait?.color || colorFromHandle(peerHandle),
+    created: nowISO(),
+    lastActive: nowISO(),
+    messages: [],
+    unread: 0,
+    myStories: [],
+    peerStories: [],
+    peerStoriesViewed: [],
+    synced: !!peerPubKey,
+  };
+  State.chats.push(chat);
+  await saveChat(chat);
+
+  if (chat.synced) {
+    Sync.connectChat(chat, onIncomingMessage);
+  } else {
+    setTimeout(() => addPeerMessage(chat.id, { kind:'text', body: `hi. ${myHandle} — nice.` }), 700);
+    setTimeout(() => addPeerMessage(chat.id, { kind:'text', body: 'try the + button. send me anything.' }), 2100);
+  }
+
+  SCREEN_STACK.length = 1;
+  showScreen('home', {replace:true});
+  renderHome();
+  toast(`linked with ${peerHandle}`);
+  setTimeout(() => openChat(chat.id), 650);
+}
+
+async function onIncomingMessage(chatId, payload, seq, t) {
+  const chat = State.chats.find(c => c.id === chatId);
+  if (!chat) return;
+  // dedupe by seq
+  if (chat.messages.some(m => m.seq === seq && m.from === 'them')) return;
+  await addPeerMessage(chatId, { ...payload, seq, t: new Date(t).toISOString() });
+}
+
+/* ---------------- swipe to dissolve ---------------- */
+// Pointer-based swipe (covers touch and mouse). Reveals destructive action when row is dragged left.
+// Threshold for trigger = 38% of row width. Below that, snaps back.
+function attachSwipe(wrap, row, chatId) {
+  const REVEAL = 96;       // resting reveal width (px) when armed but not yet triggered
+  let startX = 0, startY = 0, dx = 0, dy = 0, tracking = false, decided = null;
+
+  const onDown = (e) => {
+    if (e.button !== undefined && e.button !== 0) return; // ignore right-click
+    const p = pointer(e);
+    startX = p.x; startY = p.y; dx = 0; dy = 0; tracking = true; decided = null;
+    row.classList.remove('snap');
+    row.classList.add('swiping');
+    row.setPointerCapture && row.setPointerCapture(e.pointerId);
+  };
+  const onMove = (e) => {
+    if (!tracking) return;
+    const p = pointer(e);
+    dx = p.x - startX; dy = p.y - startY;
+    if (decided === null) {
+      // Lock direction once movement is decisive enough; avoids competing with vertical scroll.
+      if (Math.abs(dx) > 8 || Math.abs(dy) > 8) {
+        decided = Math.abs(dx) > Math.abs(dy) ? 'h' : 'v';
+        if (decided === 'v') { reset(); return; }
+      } else return;
+    }
+    // only left-swipe matters; rubber-band on right
+    let tx = Math.min(0, dx);
+    if (tx < -wrap.clientWidth * 0.85) tx = -wrap.clientWidth * 0.85;
+    row.style.transform = `translateX(${tx}px)`;
+    wrap.classList.toggle('armed', tx < -REVEAL * 0.45);
+  };
+  const onUp = () => {
+    if (!tracking) { return; }
+    tracking = false;
+    row.classList.remove('swiping');
+    row.classList.add('snap');
+    const threshold = -wrap.clientWidth * 0.38;
+    if (decided === 'h' && dx < threshold) {
+      // trigger dissolve
+      wrap.__suppressClick = true;
+      row.style.transform = `translateX(-100%)`;
+      requestAnimationFrame(() => requestAnimationFrame(() => initiateDissolve(chatId, wrap)));
+    } else if (decided === 'h' && dx < -REVEAL * 0.5) {
+      // hold at reveal position so user can confirm visually before swiping further or letting go
+      row.style.transform = `translateX(${-REVEAL}px)`;
+      wrap.classList.add('armed');
+      // tap anywhere on the row in this state closes it; tap on the action area triggers
+      const offClose = () => {
+        row.style.transform = '';
+        wrap.classList.remove('armed');
+        document.removeEventListener('pointerdown', offClose, true);
+      };
+      // delay attaching the dismiss so the current pointer-up doesn't immediately close it
+      setTimeout(() => document.addEventListener('pointerdown', offClose, true), 50);
+    } else {
+      row.style.transform = '';
+      wrap.classList.remove('armed');
+    }
+  };
+  const reset = () => {
+    tracking = false;
+    row.classList.remove('swiping');
+    row.classList.add('snap');
+    row.style.transform = '';
+    wrap.classList.remove('armed');
+  };
+  const pointer = (e) => ({
+    x: e.clientX ?? e.touches?.[0]?.clientX ?? 0,
+    y: e.clientY ?? e.touches?.[0]?.clientY ?? 0,
+  });
+
+  row.addEventListener('pointerdown', onDown);
+  row.addEventListener('pointermove', onMove);
+  row.addEventListener('pointerup',   onUp);
+  row.addEventListener('pointercancel', reset);
+}
+
+/* ---------------- dissolve protocol ---------------- */
+async function initiateDissolve(chatId, wrap /* the .chat-row-wrap to animate out */) {
+  const chat = State.chats.find(c => c.id === chatId);
+  if (!chat) return;
+  const ok = await confirmModal({
+    title: 'delete this chat?',
+    body: chat.synced
+      ? 'This will end the chat for both of you. The other person will see "chat ended" but won\'t lose what was already on their device. The server copy is destroyed immediately.'
+      : 'This chat will be removed from this device.',
+    okLabel: 'delete',
+    cancelLabel: 'keep',
+    danger: true,
+  });
+  if (!ok) {
+    // snap row back open
+    const row = wrap.querySelector('.chat-row');
+    row.style.transform = '';
+    wrap.classList.remove('armed');
+    return;
+  }
+
+  // Capture myPubKey SYNCHRONOUSLY before the setTimeout that wipes the chat object.
+  // The pending-dissolves queue persists {chatId, pubkey} so a retry can authenticate
+  // against the live DO. Capturing here (not inside the .catch closure that races the
+  // 360ms timeout) makes the queue write deterministic.
+  const pubkeyForRetry = chat.myPubKey;
+
+  // For synced chats: tell the server. The DO will relay 'dissolved' to peer, then self-destruct.
+  // We don't *wait* for confirmation before deleting locally — the user expects instant feedback.
+  // If the network call fails, the {chatId, pubkey} pair is queued for retry on next online.
+  if (chat.synced) {
+    sendDissolveSignal(chat).catch(err => {
+      console.warn('dissolve signal failed; will retry on next online connect', err);
+      queueDissolve(chat.id, pubkeyForRetry);
+    });
+  }
+
+  // Animate the row out, then delete locally.
+  wrap.classList.add('dissolving');
+  wrap.style.maxHeight = wrap.offsetHeight + 'px';
+  requestAnimationFrame(() => { wrap.style.maxHeight = '0px'; });
+  setTimeout(async () => {
+    await deleteChatLocally(chat.id);
+    renderHome();
+  }, 360);
+}
+
+async function sendDissolveSignal(chat) {
+  // REST is the SINGLE-TRACK initiator. The WS {type:'dissolve'} opcode is gone — sending it
+  // here would race the synchronous ws.close() in the same tick (the close handshake doesn't
+  // reliably flush buffered frames first), and the REST path already triggers peer notification
+  // via the DO's _teardown fan-out. Close the socket locally to stop receiving, then REST.
+  const conn = Sync.sockets.get(chat.id);
+  if (conn) {
+    try { conn.ws.close(1000, 'dissolved by me'); } catch {}
+    Sync.sockets.delete(chat.id);
+  }
+  // Authentication: the chat's myPubKey on the body is checked against one of the two pubkeys
+  // the DO stored at pair-time. An attacker without that pubkey can't trigger this path.
+  const base = WHISPERONI_API_BASE || (typeof window !== 'undefined' ? window.location.origin : '');
+  const r = await fetch(`${base}/chat/${chat.id}/dissolve`, {
+    method: 'POST',
+    headers: { 'content-type': 'application/json' },
+    body: JSON.stringify({ pubkey: chat.myPubKey }),
+  });
+  if (!r.ok) throw new Error('dissolve REST failed: ' + r.status);
+}
+
+const PENDING_DISSOLVES_KEY = 'pendingDissolves';
+async function queueDissolve(chatId, pubkey) {
+  const q = (await loadKey(PENDING_DISSOLVES_KEY, [])) || [];
+  // Dedupe by chatId — the pubkey for a given chat is stable.
+  if (q.some(e => (e && typeof e === 'object' ? e.chatId : e) === chatId)) return;
+  q.push({ chatId, pubkey });
+  await saveKey(PENDING_DISSOLVES_KEY, q);
+}
+async function drainPendingDissolves() {
+  if (!SYNC_ENABLED) return;
+  const q = (await loadKey(PENDING_DISSOLVES_KEY, [])) || [];
+  if (!q.length) return;
+  const remaining = [];
+  const base = WHISPERONI_API_BASE || window.location.origin;
+  for (const entry of q) {
+    // Two shapes: {chatId, pubkey} (post-fix) or a bare string (pre-fix legacy queue).
+    const isObj  = entry && typeof entry === 'object';
+    const chatId = isObj ? entry.chatId : entry;
+    const pubkey = isObj ? entry.pubkey : null;
+    try {
+      const body = pubkey ? { pubkey } : { orphaned: true };
+      const r = await fetch(`${base}/chat/${chatId}/dissolve`, {
+        method: 'POST',
+        headers: { 'content-type': 'application/json' },
+        body: JSON.stringify(body),
+      });
+      // 200 (alreadyGone or full teardown) and 410 (gone) → drop.
+      // 403 with a pubkey-bearing body shouldn't happen (the pubkey is one of the two stored);
+      //   treat as terminal and drop with a warning rather than loop forever.
+      // 403 with the legacy bare-id (no pubkey) is the un-authenticatable orphan — drop with warning.
+      // Other non-ok statuses → keep queued for next online retry.
+      if (r.ok || r.status === 410) {
+        // drop
+      } else if (r.status === 403) {
+        console.warn('dissolve rejected (403); dropping orphan entry', { chatId, hadPubkey: !!pubkey });
+        // drop
+      } else {
+        remaining.push(entry);
+      }
+    } catch {
+      // Network failure → keep for retry.
+      remaining.push(entry);
+    }
+  }
+  await saveKey(PENDING_DISSOLVES_KEY, remaining);
+}
+
+async function deleteChatLocally(chatId) {
+  // Drop the WS connection if still around
+  const conn = Sync.sockets.get(chatId);
+  if (conn) {
+    try { conn.ws.close(1000, 'local delete'); } catch {}
+    Sync.sockets.delete(chatId);
+  }
+  State.chats = State.chats.filter(c => c.id !== chatId);
+  if (State.currentChatId === chatId) State.currentChatId = null;
+  // Per-chat IDB layout: remove the chat:<id> record AND update chat-index. saveChats() would
+  // not delete the persisted record — deleteChat does both.
+  await deleteChat(chatId);
+}
+
+// Inbound dissolve from the peer: mark the chat as 'ended' but don't blow away their content.
+// Receiver can later swipe to remove it from their own device.
+async function handleIncomingDissolve(chatId, by) {
+  const chat = State.chats.find(c => c.id === chatId);
+  if (!chat) return;
+  chat.ended = true;
+  chat.endedAt = nowISO();
+  chat.endedBy = by || 'them';
+  // Append a system message so the chat view shows it clearly when reopened.
+  chat.messages.push({
+    id: uid(8), from: 'sys', t: nowISO(), kind: 'system',
+    body: 'they ended this chat. messages are kept on your device.'
+  });
+  chat.lastActive = nowISO();
+  // Close the socket and wipe sensitive crypto material BEFORE saving so a crash in the ~1ms
+  // window between updates doesn't leave the priv-key persisted. Single save.
+  const conn = Sync.sockets.get(chatId);
+  if (conn) { try { conn.ws.close(1000, 'dissolved'); } catch {} Sync.sockets.delete(chatId); }
+  chat.myPrivJwk = null;
+  chat.peerPubKey = null;
+  chat.synced = false;
+  await saveChat(chat);
+  if (State.currentChatId === chatId) renderMessages();
+  renderHome();
+  toast(`${chat.peerHandle} ended the chat`);
+}
+
+/* ---------------- chat ---------------- */
+function openChat(id) {
+  const chat = State.chats.find(c => c.id === id);
+  if (!chat) return;
+  State.currentChatId = id;
+  chat.unread = 0; saveChat(chat);
+
+  $('#chatHandle').textContent = chat.peerHandle;
+  const wrap = $('#chatAvatarWrap');
+  const fresh = (chat.peerStories||[]).filter(s => Date.now() - new Date(s.t).getTime() < 86_400_000);
+  const unviewed = fresh.filter(s => !(chat.peerStoriesViewed||[]).includes(s.id));
+  wrap.innerHTML = avatarHTML({handle:chat.peerHandle, portrait:chat.peerPortrait, size:42, withStory: unviewed.length > 0});
+  wrap.onclick = () => { if (fresh.length) openStoryViewer(id, 'peer'); };
+
+  renderMessages();
+  showScreen('chat');
+  setTimeout(() => $('#messageInput').focus(), 300);
+}
+
+function renderMessages() {
+  const chat = State.chats.find(c => c.id === State.currentChatId);
+  if (!chat) return;
+  const wrap = $('#messages');
+  if (chat.messages.length === 0) {
+    wrap.innerHTML = `<div style="margin:auto;text-align:center;color:var(--whisper);font-size:13px;padding:40px 20px;line-height:1.6">
+      <div style="font-family:'Instrument Serif',serif;font-style:italic;font-size:22px;color:var(--cream);margin-bottom:6px">you're linked</div>
+      this conversation lives only on the two devices that hold it.<br/>say something.
+    </div>`;
+    return;
+  }
+
+  // group by day, mark consecutive same-sender
+  let last = null;
+  let lastDay = null;
+  const out = [];
+  chat.messages.forEach((m, i) => {
+    const day = dayLabel(m.t);
+    if (day !== lastDay) {
+      out.push(`<div class="day-divider">${day}</div>`);
+      lastDay = day;
+    }
+    const sameAsPrev = last && last.from === m.from;
+    out.push(renderBubble(m, sameAsPrev));
+    last = m;
+  });
+  wrap.innerHTML = out.join('');
+  wrap.scrollTop = wrap.scrollHeight;
+}
+
+function renderBubble(m, sameAsPrev) {
+  if (m.kind === 'system' || m.from === 'sys') {
+    return `<div style="align-self:center;color:var(--whisper);font-size:11.5px;font-family:'JetBrains Mono',monospace;letter-spacing:.04em;padding:8px 16px;text-align:center;line-height:1.5;max-width:80%">${escapeHtml(m.body||'')}</div>`;
+  }
+  const side = m.from === 'me' ? 'me' : 'them';
+  const sameCls = sameAsPrev ? ` same-${side}` : '';
+  const time = new Date(m.t).toLocaleTimeString(undefined,{hour:'2-digit',minute:'2-digit'});
+  switch (m.kind) {
+    case 'text':
+      return `<div class="bubble ${side}${sameCls}">
+        ${escapeHtml(m.body).replace(/\n/g,'<br/>')}
+        <div class="meta">${time}</div>
+      </div>`;
+    case 'media':
+      return `<div class="bubble media ${side}${sameCls}">
+        <div class="ph"><span>${escapeHtml(m.caption||'photo')}</span></div>
+        <div class="meta" style="padding:4px 8px 2px">${time}</div>
+      </div>`;
+    case 'audio':
+      return `<div class="bubble audio ${side}${sameCls}">
+        <div class="play"><svg width="14" height="14" viewBox="0 0 24 24" fill="currentColor"><path d="M8 5v14l11-7z"/></svg></div>
+        <div class="wave">${Array.from({length:24}).map((_,i)=>`<i style="height:${20 + Math.sin(i*0.7)*40 + Math.random()*10}%"></i>`).join('')}</div>
+        <div class="dur">${m.duration||3}s</div>
+      </div>`;
+    case 'location':
+      return `<div class="bubble location ${side}${sameCls}">
+        <div class="map">
+          <div class="pin"><svg width="32" height="32" viewBox="0 0 24 24" fill="currentColor"><path d="M12 2C8 2 5 5 5 9c0 5 7 13 7 13s7-8 7-13c0-4-3-7-7-7zm0 9a2.5 2.5 0 1 1 0-5 2.5 2.5 0 0 1 0 5z"/></svg></div>
+        </div>
+        <div class="loc-label">📍 ${escapeHtml(m.label || 'shared a place')}</div>
+        <div class="meta" style="padding:2px 6px 4px">${time}</div>
+      </div>`;
+    case 'contact':
+      return `<div class="bubble contact ${side}${sameCls}">
+        <div class="ico"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor"><circle cx="12" cy="8" r="4"/><path d="M4 21v-1a8 8 0 0 1 16 0v1"/></svg></div>
+        <div>
+          <div class="ct-name" style="font-family:'JetBrains Mono',monospace;font-size:13px;letter-spacing:.02em">${escapeHtml(m.handle||'@?')}</div>
+          <div class="ct-handle">shared a contact</div>
+        </div>
+      </div>`;
+    case 'socials':
+      return `<div class="bubble ${side}${sameCls}" style="padding:12px 14px">
+        <div style="font-weight:500;font-size:13px;margin-bottom:6px;opacity:.9">${escapeHtml(m.title||'my socials')}</div>
+        <div style="display:flex;flex-direction:column;gap:4px;font-family:'JetBrains Mono',monospace;font-size:12px;opacity:.85">
+          ${(m.links||['@me','@me','@me']).map(l => `<div>${escapeHtml(l)}</div>`).join('')}
+        </div>
+        <div class="meta">${time}</div>
+      </div>`;
+    case 'identity':
+      return `<div class="bubble ${side}${sameCls}" style="padding:12px 14px;min-width:200px">
+        <div style="font-size:11px;letter-spacing:.12em;text-transform:uppercase;opacity:.6;margin-bottom:6px">identity</div>
+        <div style="font-family:'JetBrains Mono',monospace;font-size:14px;font-weight:500">${escapeHtml(m.handle||'@?')}</div>
+        <div class="meta">${time}</div>
+      </div>`;
+    case 'gif':
+      return `<div class="bubble media ${side}${sameCls}">
+        <div class="ph" style="background:linear-gradient(135deg,#8fb3c8,#3a141d);height:120px"><span style="font-family:'JetBrains Mono',monospace;font-size:14px">GIF · ${escapeHtml(m.label||'reaction')}</span></div>
+        <div class="meta" style="padding:4px 8px 2px">${time}</div>
+      </div>`;
+    case 'story-share':
+      return `<div class="bubble ${side}${sameCls}" style="padding:6px">
+        <div style="background:${m.bg || 'linear-gradient(135deg,#3a141d,#d8a86a)'};height:140px;border-radius:14px;display:grid;place-items:center;padding:12px;text-align:center">
+          <div style="font-family:'Instrument Serif',serif;font-style:italic;font-size:20px;color:#fff;text-shadow:0 2px 10px rgba(0,0,0,.4)">${escapeHtml(m.text||'')}</div>
+        </div>
+        <div class="meta" style="padding:4px 8px 2px">story · ${time}</div>
+      </div>`;
+    default: return '';
+  }
+}
+
+async function sendMessage(payload) {
+  const chat = State.chats.find(c => c.id === State.currentChatId);
+  if (!chat) return;
+  if (chat.ended) { toast('this chat has ended'); return; }
+  const msg = { id: uid(8), from: 'me', t: nowISO(), ...payload };
+  chat.messages.push(msg);
+  chat.lastActive = nowISO();
+  await saveChat(chat);
+  renderMessages();
+  renderHome();
+
+  if (chat.synced) {
+    try { await Sync.sendOver(chat, payload); }
+    catch (e) { console.warn('send failed', e); toast('not connected — message stored locally'); }
+  } else {
+    scheduleMockReply(chat.id, payload);
+  }
+}
+
+async function addPeerMessage(chatId, payload) {
+  const chat = State.chats.find(c => c.id === chatId);
+  if (!chat) return;
+  const msg = { id: uid(8), from: 'them', t: nowISO(), ...payload };
+  chat.messages.push(msg);
+  chat.lastActive = nowISO();
+  if (State.currentChatId !== chatId) chat.unread = (chat.unread||0) + 1;
+  await saveChat(chat);
+  if (State.currentChatId === chatId) renderMessages();
+  renderHome();
+}
+
+/* ---------------- mock peer (just for the prototype) ---------------- */
+const PEER_LINES = {
+  text: [
+    "okay i see you.",
+    "say more.",
+    "interesting.",
+    "go on.",
+    "i was just thinking that.",
+    "where are you, actually.",
+    "what made you say that.",
+    "ha.",
+    "okay but seriously.",
+    "this app is something.",
+  ],
+  media: ["nice", "send another", "what is that"],
+  location: ["i know that place", "on my way", "describe it"],
+  audio: ["heard it", "listening again", "send another"],
+  socials: ["adding you now", "got it", "okay following"],
+  contact: ["who is that", "do they know you", "okay"],
+  identity: ["noted", "got your card", "this is unhinged i love it"],
+  gif: ["lol", "stop", "exactly"],
+  'story-share': ["read it twice", "noted", "okay"],
+};
+
+function scheduleMockReply(chatId, payload) {
+  const lines = PEER_LINES[payload.kind] || PEER_LINES.text;
+  const reply = lines[Math.floor(Math.random()*lines.length)];
+  const delay = 900 + Math.random()*1800;
+  setTimeout(() => addPeerMessage(chatId, { kind:'text', body: reply }), delay);
+}
+
+/* ---------------- attach sheet ---------------- */
+function toggleAttach(open) {
+  const sh = $('#attachSheet');
+  State.attachOpen = open ?? !State.attachOpen;
+  sh.classList.toggle('open', State.attachOpen);
+}
+
+async function handleAttach(kind) {
+  toggleAttach(false);
+  const chat = State.chats.find(c => c.id === State.currentChatId);
+  if (!chat) return;
+  switch (kind) {
+    case 'media':
+      await sendMessage({ kind: 'media', caption: 'photo' });
+      break;
+    case 'audio':
+      await sendMessage({ kind: 'audio', duration: Math.floor(2 + Math.random()*8) });
+      break;
+    case 'location':
+      await sendMessage({ kind: 'location', label: 'where i am' });
+      break;
+    case 'contact':
+      await sendMessage({ kind: 'contact', handle: '@a_friend' });
+      break;
+    case 'socials':
+      const slug = (chat.myHandle||'@me').replace('@','');
+      await sendMessage({ kind: 'socials', title: 'my socials', links: ['ig · @' + slug, 'x · @' + slug, 'are.na · /' + slug] });
+      break;
+    case 'identity':
+      await sendMessage({ kind: 'identity', handle: chat.myHandle });
+      break;
+    case 'gif':
+      await sendMessage({ kind: 'gif', label: 'mood' });
+      break;
+    case 'story':
+      openStoryCreate();
+      break;
+  }
+}
+
+/* ---------------- stories ---------------- */
+function openStoryCreate() {
+  State.storyDraft = { kind:'text', text:'', bg:'linear-gradient(135deg,#3a141d,#d8a86a)', dataUrl:null };
+  $('#storyText').value = '';
+  $('#storyPreviewText').innerHTML = '<span class="placeholder">your words live here</span>';
+  const prev = $('#storyPreview');
+  prev.style.background = State.storyDraft.bg;
+  prev.classList.remove('has-media');
+  // strip any media elements left from a previous draft
+  prev.querySelectorAll('img,video').forEach(n => n.remove());
+  $$('#storyBgRow .swatch').forEach(s => s.classList.remove('selected'));
+  $$('#storyBgRow .swatch')[0].classList.add('selected');
+  // reset kind toggle
+  $$('#storyKindToggle button').forEach(b => b.classList.toggle('active', b.dataset.kind === 'text'));
+  showStoryKindUI('text');
+  showScreen('story-create');
+}
+
+function showStoryKindUI(kind) {
+  $('#storyText').style.display = (kind === 'text') ? '' : 'none';
+  $('#storyBgWrap').style.display = (kind === 'text') ? '' : 'none';
+}
+
+async function pickStoryMedia(kind) {
+  const input = $(kind === 'image' ? '#storyImageInput' : '#storyVideoInput');
+  input.value = '';
+  input.onchange = async () => {
+    const file = input.files && input.files[0];
+    if (!file) return;
+    try {
+      if (kind === 'image') {
+        const dataUrl = await Media.downscaleImage(file, { maxEdge: 1080, quality: 0.82 });
+        State.storyDraft = { kind:'image', dataUrl };
+        const prev = $('#storyPreview');
+        prev.querySelectorAll('img,video').forEach(n => n.remove());
+        const img = document.createElement('img');
+        img.src = dataUrl;
+        prev.appendChild(img);
+        prev.classList.add('has-media');
+        $('#storyPreviewText').innerHTML = '';
+      } else {
+        const { dataUrl, duration } = await Media.checkVideo(file, { maxSeconds: 10 });
+        State.storyDraft = { kind:'video', dataUrl, duration };
+        const prev = $('#storyPreview');
+        prev.querySelectorAll('img,video').forEach(n => n.remove());
+        const v = document.createElement('video');
+        v.src = dataUrl; v.muted = true; v.playsInline = true; v.loop = true; v.autoplay = true;
+        prev.appendChild(v);
+        prev.classList.add('has-media');
+        $('#storyPreviewText').innerHTML = '';
+      }
+    } catch (e) {
+      toast(e.message || 'cannot use that');
+      // revert toggle to text
+      $$('#storyKindToggle button').forEach(b => b.classList.toggle('active', b.dataset.kind === 'text'));
+      State.storyDraft.kind = 'text';
+      showStoryKindUI('text');
+    }
+  };
+  input.click();
+}
+
+async function postStory() {
+  if (State.chats.length === 0) {
+    toast('start a chat first — stories live inside conversations');
+    goBack();
+    return;
+  }
+  const d = State.storyDraft;
+  let story;
+  if (d.kind === 'text') {
+    const text = $('#storyText').value.trim();
+    if (!text) { toast('say one thing'); return; }
+    story = { id: uid(8), kind:'text', text, bg: d.bg, t: nowISO() };
+  } else if (d.kind === 'image') {
+    if (!d.dataUrl) { toast('pick a photo'); return; }
+    const captionEl = $('#storyText');
+    story = { id: uid(8), kind:'image', dataUrl: d.dataUrl, caption: captionEl.value.trim(), t: nowISO() };
+  } else if (d.kind === 'video') {
+    if (!d.dataUrl) { toast('pick a video'); return; }
+    const captionEl = $('#storyText');
+    story = { id: uid(8), kind:'video', dataUrl: d.dataUrl, duration: d.duration, caption: captionEl.value.trim(), t: nowISO() };
+  } else { return; }
+
+  // attach to all chats. (Per-chat selectivity is a future feature.)
+  // Category B bulk write: per-chat IDB layout requires saveChat(c) INSIDE the loop so each
+  // touched record is persisted. A single saveChat after the loop would only save the last
+  // chat. saveChats() (the fan-out shim) would also work but is identical effort.
+  for (const c of State.chats) {
+    c.myStories = c.myStories || [];
+    c.myStories.push(story);
+    // expire anything older than 24h while we're here
+    c.myStories = c.myStories.filter(s => Date.now() - new Date(s.t).getTime() < 86_400_000);
+    await saveChat(c);
+  }
+  renderHome();
+  toast(story.kind === 'text' ? 'story posted' : `${story.kind} story posted`);
+  goBack();
+}
+
+function openStoryViewer(chatId, who='peer') {
+  const chat = State.chats.find(c => c.id === chatId);
+  if (!chat) return;
+  const all = (who === 'me' ? chat.myStories : chat.peerStories) || [];
+  const fresh = all.filter(s => Date.now() - new Date(s.t).getTime() < 86_400_000);
+  if (!fresh.length) return;
+
+  // start at first unviewed (peer only); for self always at 0
+  let startIdx = 0;
+  if (who === 'peer') {
+    const idx = fresh.findIndex(s => !(chat.peerStoriesViewed||[]).includes(s.id));
+    startIdx = idx >= 0 ? idx : 0;
+  }
+
+  State.viewer = { chatId, who, stories: fresh, idx: startIdx, paused: false, timer: null };
+  showScreen('story-view');
+  renderStoryFrame();
+}
+
+function renderStoryFrame() {
+  const v = State.viewer;
+  if (!v) return;
+  const chat = State.chats.find(c => c.id === v.chatId);
+  if (!chat) return;
+  const story = v.stories[v.idx];
+  if (!story) { closeStoryViewer(); return; }
+
+  // head
+  const handle = v.who === 'me' ? chat.myHandle : chat.peerHandle;
+  const portrait = v.who === 'me' ? chat.myPortrait : chat.peerPortrait;
+  $('#storyAvWrap').innerHTML = avatarHTML({handle, portrait, size: 38, withStory:false});
+  $('#storyHandle').textContent = v.who === 'me' ? handle + ' (you)' : handle;
+  $('#storyTime').textContent = fmtTime(story.t) + ' ago';
+
+  // progress bars: one per story, advance the current
+  const dur = storyDuration(story);
+  $('#storyBars').innerHTML = v.stories.map((_, i) => {
+    if (i < v.idx) return '<div class="bar done"><div class="fill"></div></div>';
+    if (i === v.idx) return `<div class="bar active"><div class="fill" style="animation-duration:${dur}ms"></div></div>`;
+    return '<div class="bar"><div class="fill"></div></div>';
+  }).join('');
+
+  // canvas
+  const canvas = $('#storyCanvas');
+  canvas.innerHTML = '';
+  if (story.kind === 'text') {
+    canvas.innerHTML = `<div class="story-text" style="position:absolute;inset:0;background:${story.bg};display:grid;place-items:center;padding:0 32px">${escapeHtml(story.text)}</div>`;
+  } else if (story.kind === 'image') {
+    const img = document.createElement('img');
+    img.src = story.dataUrl;
+    canvas.appendChild(img);
+    if (story.caption) {
+      const cap = document.createElement('div');
+      cap.className = 'story-text-overlay';
+      cap.textContent = story.caption;
+      canvas.appendChild(cap);
+    }
+  } else if (story.kind === 'video') {
+    const vid = document.createElement('video');
+    vid.src = story.dataUrl;
+    vid.autoplay = true; vid.muted = true; vid.playsInline = true; vid.loop = false;
+    canvas.appendChild(vid);
+    if (story.caption) {
+      const cap = document.createElement('div');
+      cap.className = 'story-text-overlay';
+      cap.textContent = story.caption;
+      canvas.appendChild(cap);
+    }
+  }
+
+  // mark this story as viewed (peer only)
+  if (v.who === 'peer') {
+    chat.peerStoriesViewed = chat.peerStoriesViewed || [];
+    if (!chat.peerStoriesViewed.includes(story.id)) {
+      chat.peerStoriesViewed.push(story.id);
+      saveChat(chat);
+    }
+  }
+
+  // schedule auto-advance
+  clearTimeout(v.timer);
+  v.timer = setTimeout(advanceStory, dur);
+}
+
+function storyDuration(story) {
+  if (story.kind === 'video') return Math.max(2000, Math.min(10500, Math.round((story.duration||5) * 1000)));
+  if (story.kind === 'image') return 5500;
+  return 5000;
+}
+
+function advanceStory() {
+  const v = State.viewer;
+  if (!v) return;
+  if (v.idx + 1 >= v.stories.length) { closeStoryViewer(); renderHome(); return; }
+  v.idx++;
+  renderStoryFrame();
+}
+function rewindStory() {
+  const v = State.viewer;
+  if (!v) return;
+  if (v.idx === 0) return;
+  v.idx--;
+  renderStoryFrame();
+}
+function closeStoryViewer() {
+  const v = State.viewer;
+  if (v) { clearTimeout(v.timer); State.viewer = null; }
+  if ($('#screen-story-view').classList.contains('active')) goBack();
+}
+
+// tap regions: left third = prev, right two-thirds = next
+function onStoryCanvasClick(e) {
+  const v = State.viewer; if (!v) return;
+  const rect = e.currentTarget.getBoundingClientRect();
+  const x = e.clientX - rect.left;
+  if (x < rect.width * 0.33) rewindStory(); else advanceStory();
+}
+
+/* ---------------- settings ---------------- */
+function openSettings() {
+  $('#defaultHandle').value = State.profile.defaultHandle || '';
+  $('#statChats').textContent = State.chats.length;
+  $('#statMsgs').textContent = State.chats.reduce((a,c) => a + c.messages.length, 0);
+  showScreen('settings');
+}
+
+/* ---------------- in-app confirm modal ---------------- */
+function confirmModal({title, body, okLabel='confirm', cancelLabel='cancel', danger=false}) {
+  return new Promise(resolve => {
+    const bd = $('#modalBackdrop');
+    $('#modalTitle').textContent = title;
+    $('#modalBody').textContent = body;
+    const ok = $('#modalOk');
+    const cancel = $('#modalCancel');
+    ok.textContent = okLabel;
+    cancel.textContent = cancelLabel;
+    ok.style.background = danger ? '#c44' : 'var(--gold)';
+    ok.style.color = danger ? '#fff' : 'var(--ink)';
+    bd.classList.add('open');
+
+    const cleanup = (result) => {
+      bd.classList.remove('open');
+      ok.removeEventListener('click', onOk);
+      cancel.removeEventListener('click', onCancel);
+      bd.removeEventListener('click', onBackdrop);
+      resolve(result);
+    };
+    const onOk = () => cleanup(true);
+    const onCancel = () => cleanup(false);
+    const onBackdrop = (e) => { if (e.target === bd) cleanup(false); };
+    ok.addEventListener('click', onOk);
+    cancel.addEventListener('click', onCancel);
+    bd.addEventListener('click', onBackdrop);
+  });
+}
+
+async function wipeAll() {
+  const ok = await confirmModal({
+    title: 'wipe everything',
+    body: 'Every chat, every message, your default handle. Gone. This cannot be undone.',
+    okLabel: 'wipe',
+    cancelLabel: 'keep',
+    danger: true,
+  });
+  if (!ok) return;
+
+  State.chats = [];
+  State.profile = { defaultHandle:'' };
+  State.currentChatId = null;
+  State.onboarded = false;
+
+  // Per-chat IDB layout (Category C wipe): setting State.chats = [] and calling saveChats() is
+  // a no-op against the persisted chat:<id> records (the shim iterates empty array). The only
+  // correct wipe is to drop the entire database. After deletion the next IDB.get() reopens at
+  // version 1 with an empty store. Also clear the in-memory fallback map.
+  if (typeof indexedDB !== 'undefined') {
+    try {
+      IDB.reset();
+      await new Promise((resolve) => {
+        const req = indexedDB.deleteDatabase(IDB_DB_NAME);
+        req.onsuccess = () => resolve();
+        req.onerror   = () => resolve();
+        req.onblocked = () => resolve();
+      });
+    } catch (e) { console.warn('idb wipe failed', e); }
+  }
+  for (const k of Object.keys(__mem)) delete __mem[k];
+
+  // Best-effort cleanup of any window.storage legacy artifact-deployment keys.
+  if (typeof window !== 'undefined' && window.storage && typeof window.storage.delete === 'function') {
+    for (const k of ['whisperoni:profile','whisperoni:chats','whisperoni:onboarded','velvet:profile','velvet:chats','velvet:onboarded']) {
+      try { await window.storage.delete(k); } catch {}
+    }
+  }
+
+  // bring back onboarding (so the wipe truly resets the app)
+  $('#onboard').classList.remove('hidden');
+
+  SCREEN_STACK.length = 1;
+  showScreen('home', {replace:true});
+  renderHome();
+  toast('wiped — fresh start');
+}
+
+/* ---------------- onboarding ---------------- */
+async function dismissOnboard() {
+  $('#onboard').classList.add('hidden');
+  State.onboarded = true;
+  await saveKey(STORAGE_KEYS.seen, true);
+}
+
+/* ---------------- wire ---------------- */
+async function init() {
+  await bootstrap();
+  renderHome();
+
+  // Request persistence and probe for ephemeral storage. Deliberately NOT in dismissOnboard:
+  // returning users skip dismissOnboard entirely (bootstrap branch just hides the overlay),
+  // so hooking there would dead the feature for everyone after their first session. Calling
+  // here after renderHome lets first paint happen first, then the (browser-dependent)
+  // permission prompt fires against an investedlooking app. 500ms delay = polish.
+  setTimeout(() => { requestPersistence().catch(()=>{}); }, 500);
+
+  // reconnect any existing synced chats; also drain queued dissolves and check tombstones
+  if (SYNC_ENABLED) {
+    drainPendingDissolves().catch(()=>{});
+    // For each chat we still hold, ask the server whether it's been tombstoned in our absence.
+    // The DO's WS handshake also reveals this (404 on identify), but a fast HEAD avoids a flapping
+    // connect attempt for chats whose server-side state is gone.
+    const base = WHISPERONI_API_BASE || window.location.origin;
+    for (const chat of State.chats) {
+      if (chat.ended || !chat.synced || !chat.peerPubKey) continue;
+      fetch(`${base}/chat/${chat.id}/status`).then(r => r.ok ? r.json() : null).then(s => {
+        if (s && s.tombstoned) {
+          handleIncomingDissolve(chat.id, 'them');
+        } else {
+          Sync.connectChat(chat, onIncomingMessage).catch(e => console.warn('reconnect', chat.id, e));
+        }
+      }).catch(() => {
+        // network blip: optimistically try the WS anyway
+        Sync.connectChat(chat, onIncomingMessage).catch(e => console.warn('reconnect', chat.id, e));
+      });
+    }
+  }
+
+  if (State.onboarded) {
+    $('#onboard').classList.add('hidden');
+  }
+  // ---- onboarding handle (required) ----
+  const oh = $('#onboardHandle');
+  const og = $('#onboardGo');
+  oh.value = State.profile.defaultHandle || '';
+  og.disabled = !normalizeHandle(oh.value).replace('@','');
+  oh.addEventListener('input', () => {
+    og.disabled = !normalizeHandle(oh.value).replace('@','');
+  });
+  oh.addEventListener('blur', () => { oh.value = normalizeHandle(oh.value); });
+  oh.addEventListener('keydown', e => { if (e.key === 'Enter' && !og.disabled) og.click(); });
+  og.addEventListener('click', async () => {
+    const v = normalizeHandle(oh.value);
+    if (!v.replace('@','')) return;
+    State.profile.defaultHandle = v;
+    await saveProfile();
+    dismissOnboard();
+  });
+
+  // global back buttons
+  document.addEventListener('click', e => {
+    const back = e.target.closest('[data-back]');
+    if (back) {
+      if ($('#screen-story-view').classList.contains('active')) closeStoryViewer();
+      else goBack();
+    }
+  });
+
+  // home actions
+  $('#newChatBtn').addEventListener('click', openNewChat);
+  $('#openSettings').addEventListener('click', openSettings);
+  $('#storyFab').addEventListener('click', openStoryCreate);
+
+  // ---- new-chat: handle + portrait picker ----
+  $('#myHandleField').addEventListener('input', maybeShowQR);
+  $('#myHandleField').addEventListener('blur', e => { e.target.value = normalizeHandle(e.target.value); maybeShowQR(); });
+
+  $$('#portraitRow .portrait-pick[data-vibe]').forEach(el => {
+    el.addEventListener('click', () => {
+      $$('#portraitRow .portrait-pick').forEach(x => x.classList.remove('selected'));
+      el.classList.add('selected');
+      const vibe = el.dataset.vibe;
+      const c1 = getComputedStyle(el).getPropertyValue('--c1').trim() || '#d8a86a';
+      State.pendingPortrait = { kind:'vibe', vibe, color: c1 };
+      // reset selfie button visual
+      $('#selfieBtn').innerHTML = `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor"><path d="M23 19a2 2 0 0 1-2 2H3a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h4l2-3h6l2 3h4a2 2 0 0 1 2 2z"/><circle cx="12" cy="13" r="4"/></svg>`;
+      maybeShowQR();
+    });
+  });
+  $('#selfieBtn').addEventListener('click', () => $('#selfieInput').click());
+  $('#selfieInput').addEventListener('change', async e => {
+    const f = e.target.files && e.target.files[0];
+    if (!f) return;
+    try {
+      const dataUrl = await Media.downscaleImage(f, { maxEdge: 480, quality: 0.85, square: true });
+      State.pendingPortrait = { kind:'selfie', dataUrl };
+      $$('#portraitRow .portrait-pick').forEach(x => x.classList.remove('selected'));
+      const btn = $('#selfieBtn');
+      btn.classList.add('selected');
+      btn.innerHTML = `<img src="${dataUrl}" alt="">`;
+      maybeShowQR();
+    } catch (err) {
+      toast('could not read that photo');
+    }
+  });
+
+  $('#simulateScan').addEventListener('click', simulateScanFromOtherSide);
+
+  // chat composer
+  const input = $('#messageInput');
+  const sendBtn = $('#sendBtn');
+  input.addEventListener('input', () => {
+    sendBtn.disabled = !input.value.trim();
+    // auto-grow
+    input.style.height = 'auto';
+    input.style.height = Math.min(120, input.scrollHeight) + 'px';
+  });
+  input.addEventListener('keydown', e => {
+    if (e.key === 'Enter' && !e.shiftKey) {
+      e.preventDefault();
+      submitText();
+    }
+  });
+  sendBtn.addEventListener('click', submitText);
+
+  function submitText() {
+    const v = input.value.trim();
+    if (!v) return;
+    sendMessage({ kind:'text', body: v });
+    input.value = '';
+    input.style.height = 'auto';
+    sendBtn.disabled = true;
+  }
+
+  // attach
+  $('#attachBtn').addEventListener('click', () => toggleAttach());
+  $$('#attachSheet .attach-item').forEach(item => {
+    item.addEventListener('click', () => handleAttach(item.dataset.attach));
+  });
+  // close attach on outside
+  document.addEventListener('click', e => {
+    if (State.attachOpen && !e.target.closest('#attachSheet') && !e.target.closest('#attachBtn')) {
+      toggleAttach(false);
+    }
+  });
+
+  // voice button (visual stub)
+  $('#voiceBtn').addEventListener('click', () => {
+    sendMessage({ kind:'audio', duration: Math.floor(3 + Math.random()*6) });
+  });
+
+  // story
+  $('#storyText').addEventListener('input', e => {
+    State.storyDraft.text = e.target.value;
+    const pt = $('#storyPreviewText');
+    if (e.target.value.trim()) pt.textContent = e.target.value;
+    else pt.innerHTML = '<span class="placeholder">your words live here</span>';
+  });
+  $$('#storyBgRow .swatch').forEach(s => {
+    s.addEventListener('click', () => {
+      $$('#storyBgRow .swatch').forEach(x => x.classList.remove('selected'));
+      s.classList.add('selected');
+      State.storyDraft.bg = s.dataset.bg;
+      $('#storyPreview').style.background = s.dataset.bg;
+    });
+  });
+  $('#postStory').addEventListener('click', postStory);
+
+  // settings
+  $('#defaultHandle').addEventListener('change', async e => {
+    const v = normalizeHandle(e.target.value);
+    State.profile.defaultHandle = v;
+    e.target.value = v;
+    await saveProfile();
+  });
+  $('#wipeBtn').addEventListener('click', wipeAll);
+
+  // story kind toggle
+  $$('#storyKindToggle button').forEach(btn => {
+    btn.addEventListener('click', async () => {
+      const kind = btn.dataset.kind;
+      $$('#storyKindToggle button').forEach(b => b.classList.toggle('active', b === btn));
+      State.storyDraft.kind = kind;
+      const prev = $('#storyPreview');
+      // clear existing media on switch
+      prev.querySelectorAll('img,video').forEach(n => n.remove());
+      prev.classList.remove('has-media');
+      if (kind === 'text') {
+        showStoryKindUI('text');
+        $('#storyText').placeholder = 'say one thing. it stays for 24 hours.';
+        prev.style.background = State.storyDraft.bg || 'linear-gradient(135deg,#3a141d,#d8a86a)';
+        if (!$('#storyText').value) $('#storyPreviewText').innerHTML = '<span class="placeholder">your words live here</span>';
+      } else {
+        showStoryKindUI(kind);
+        prev.style.background = '#0a0608';
+        $('#storyText').placeholder = 'add a caption (optional)';
+        $('#storyText').value = '';
+        $('#storyPreviewText').innerHTML = '<span class="placeholder">tap to choose a ' + kind + '</span>';
+        prev.style.cursor = 'pointer';
+        prev.onclick = () => pickStoryMedia(kind);
+        await pickStoryMedia(kind);
+      }
+    });
+  });
+
+  // story canvas tap-to-advance
+  $('#storyCanvas').addEventListener('click', onStoryCanvasClick);
+
+  // chat info now seeds peer with TWO sample stories (text + image-as-text) so you can experience the multi-story viewer
+  $('#chatInfo').addEventListener('click', async () => {
+    const chat = State.chats.find(c => c.id === State.currentChatId);
+    if (!chat) return;
+    chat.peerStories = chat.peerStories || [];
+    chat.peerStories.push({ id: uid(8), kind:'text', text:'just landed', bg:'linear-gradient(135deg,#1a2a3e,#8fb3c8)', t: nowISO() });
+    chat.peerStories.push({ id: uid(8), kind:'text', text:'it\'s raining here', bg:'linear-gradient(135deg,#3a1a2e,#e8a8b1)', t: nowISO() });
+    await saveChat(chat);
+    openChat(chat.id);
+    toast('they posted two stories — tap their portrait');
+  });
+}
+
+init();
+</script>
+</body>
+</html>
