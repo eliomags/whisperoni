@@ -60,7 +60,10 @@ export default {
       }
 
       if (path === '/health') return json({ ok: true, t: Date.now() });
-      return text('not found', 404);
+      // Fallback for non-API paths: serve from the static assets layer.
+      // With run_worker_first=true the Worker is invoked for every request; everything
+      // outside the /pair/*, /chat/*, /media/*, /health prefixes falls through to assets.
+      return env.ASSETS.fetch(request);
     } catch (e) {
       return json({ error: e.message }, 500);
     }

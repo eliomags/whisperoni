@@ -6,7 +6,8 @@ compatibility_date = "2026-05-28"
 directory = "./public"
 binding = "ASSETS"
 not_found_handling = "single-page-application"
-run_worker_first = ["/pair/*", "/chat/*", "/media/*", "/health"]
+run_worker_first = true   # Worker is invoked for every request so the www->apex 301 always fires;
+                          # Worker falls back to env.ASSETS.fetch(request) for non-API paths.
 
 [[durable_objects.bindings]]
 name = "CHAT_DO"
