@@ -875,7 +875,7 @@
           <button class="icon-btn" data-back>
             <svg viewBox="0 0 24 24" fill="none" stroke="currentColor"><path d="M15 18l-6-6 6-6"/></svg>
           </button>
-          <h1 style="font-size:18px;font-style:normal;font-family:'DM Sans',sans-serif;font-weight:500">Start a chat</h1>
+          <h1 id="newChatTitle" style="font-size:18px;font-style:normal;font-family:'DM Sans',sans-serif;font-weight:500">Start a chat</h1>
           <div style="width:38px"></div>
         </header>
         <div class="pair-wrap" style="padding-top:14px;justify-content:flex-start">
@@ -903,14 +903,8 @@
             <div class="qr-code-text">code <strong id="codeText">— — — —</strong></div>
           </div>
 
-          <div class="pair-actions" id="pairActions" style="opacity:0;pointer-events:none;transition:opacity .3s">
-            <button class="btn btn-primary" id="simulateScan">
-              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" style="width:18px;height:18px"><rect x="3" y="3" width="7" height="7"/><rect x="14" y="3" width="7" height="7"/><rect x="3" y="14" width="7" height="7"/><line x1="14" y1="14" x2="21" y2="14"/><line x1="14" y1="21" x2="21" y2="21"/><line x1="17.5" y1="14" x2="17.5" y2="21"/></svg>
-              simulate them scanning
-            </button>
-          </div>
-          <div class="scan-hint">
-            In production they point a camera here. For the preview, tap simulate after the QR appears.
+          <div class="scan-hint" id="pairStatus">
+            point their camera at the QR
           </div>
         </div>
       </section>
@@ -1151,11 +1145,11 @@ function unb64(s) { const bin=atob(s); const u=new Uint8Array(bin.length); for(l
 const Sync = {
   sockets: new Map(), // chatId -> {ws, sendChain, recvChain, sendCounter, recvCounter}
 
-  async pairAsHost(code, kp) {
-    // POST /pair/init {code, pubkey}; then poll /pair/wait until partner completes.
+  async pairAsHost(code, kp, handle) {
+    // POST /pair/init {code, pubkey, handle}; then poll /pair/wait until joiner arrives.
     const r = await fetch(`${WHISPERONI_API_BASE}/pair/init`, {
       method:'POST', headers:{'content-type':'application/json'},
-      body: JSON.stringify({code, pubkey: kp.pubKey}),
+      body: JSON.stringify({code, pubkey: kp.pubKey, handle}),
     });
     if (!r.ok) throw new Error('pair init failed');
     return await Sync.waitForPartner(code);
@@ -1174,13 +1168,13 @@ const Sync = {
     throw new Error('partner did not arrive');
   },
 
-  async pairAsJoiner(code, kp) {
+  async pairAsJoiner(code, kp, handle) {
     const r = await fetch(`${WHISPERONI_API_BASE}/pair/complete`, {
       method:'POST', headers:{'content-type':'application/json'},
-      body: JSON.stringify({code, pubkey: kp.pubKey}),
+      body: JSON.stringify({code, pubkey: kp.pubKey, handle}),
     });
     if (!r.ok) throw new Error('pair complete failed');
-    return await r.json(); // {chatId, peerPubkey}
+    return await r.json(); // {chatId, peerPubkey, peerHandle}
   },
 
   async connectChat(chat, onMessage) {
@@ -1804,7 +1798,20 @@ async function openNewChat() {
   State.pendingPairCode = uid(6);
   State.pendingPortrait = null;
 
-  $('#codeText').textContent = State.pendingPairCode.split('').join(' ');
+  // Joiner mode: arrived via /pair/CODE URL. Hide host-only UI (code + QR), retitle screen.
+  const joining = !!State.joinInvite;
+  const codeRow = $('#codeText') && $('#codeText').parentElement;
+  const title = $('#newChatTitle');
+  if (joining) {
+    if (title) title.textContent = 'Join the chat';
+    $('#codeText').textContent = '';
+    if (codeRow) codeRow.style.display = 'none';
+  } else {
+    if (title) title.textContent = 'Start a chat';
+    $('#codeText').textContent = State.pendingPairCode.split('').join(' ');
+    if (codeRow) codeRow.style.display = '';
+  }
+
   $('#myHandleField').value = State.profile.defaultHandle || '';
 
   // reset portrait selection visuals
@@ -1812,36 +1819,40 @@ async function openNewChat() {
   const selfieBtn = $('#selfieBtn');
   selfieBtn.innerHTML = `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor"><path d="M23 19a2 2 0 0 1-2 2H3a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h4l2-3h6l2 3h4a2 2 0 0 1 2 2z"/><circle cx="12" cy="13" r="4"/></svg>`;
 
-  // hide QR + actions until both fields are filled
+  // hide QR until both fields are filled (host) — joiner never shows QR
   $('#qrCard').classList.remove('in');
   $('#qrCard').style.visibility = 'hidden';
-  $('#pairActions').style.opacity = 0;
-  $('#pairActions').style.pointerEvents = 'none';
+  if (joining) $('#qrCard').style.display = 'none';
+  else $('#qrCard').style.display = '';
+  const ps = $('#pairStatus'); if (ps) ps.textContent = joining ? 'finish setting up to join' : '';
 
   showScreen('new');
   setTimeout(() => {
     const field = $('#myHandleField');
     if (!field.value) field.focus();
-    else maybeShowQR(); // default handle already filled — they just need to pick a portrait
+    else (joining ? maybeStartJoinFlow() : maybeShowQR());
   }, 300);
 }
 
 function maybeShowQR() {
+  // In joiner mode (arrived via /pair/CODE URL) skip the QR entirely — auto-complete the pair.
+  if (State.joinInvite) return maybeStartJoinFlow();
+
   const handle = normalizeHandle($('#myHandleField').value);
   const portrait = State.pendingPortrait;
+  const ps = $('#pairStatus');
   if (!handle || handle === '@' || !portrait) {
     $('#qrCard').classList.remove('in');
     $('#qrCard').style.visibility = 'hidden';
-    $('#pairActions').style.opacity = 0;
-    $('#pairActions').style.pointerEvents = 'none';
+    if (ps) ps.textContent = '';
     return;
   }
-  // build QR payload
+  // Build QR payload as an HTTPS URL the joiner's phone camera can open.
+  // window.location.origin gives "https://whisperoni.com" in production,
+  // "http://localhost:8788" in local dev — both work.
   const code = State.pendingPairCode;
   const kp   = State.pendingKeyPair;
-  const qrPayload = SYNC_ENABLED
-    ? `whisperoni://pair/${code}?pk=${encodeURIComponent(kp.pubKey)}`
-    : `whisperoni://pair/${code}`;
+  const qrPayload = `${window.location.origin}/pair/${code}?pk=${encodeURIComponent(kp.pubKey)}`;
 
   const target = $('#qrTarget');
   target.innerHTML = '';
@@ -1859,56 +1870,89 @@ function maybeShowQR() {
 
   $('#qrCard').style.visibility = 'visible';
   requestAnimationFrame(() => $('#qrCard').classList.add('in'));
-  $('#pairActions').style.opacity = 1;
-  $('#pairActions').style.pointerEvents = 'auto';
+  if (ps) ps.textContent = 'waiting for them to scan';
 
-  // when sync is enabled, register host pubkey now and start waiting
+  // Host: register pubkey + handle, then poll until the joiner completes the pair.
   if (SYNC_ENABLED && !State.pendingPairWaiter) {
     State.pendingPairWaiter = (async () => {
       try {
-        const result = await Sync.pairAsHost(code, kp);
+        const result = await Sync.pairAsHost(code, kp, handle);
+        const peerHandle = result.peerHandle || '@friend';
         await finalizeChat({
           myHandle: handle,
           myPortrait: State.pendingPortrait,
-          peerHandle: result.peerHandle || pickPeerHandle(),
-          peerPortrait: { kind:'vibe', vibe: vibeFromHandle(result.peerHandle||'@x'), color: colorFromHandle(result.peerHandle||'@x') },
+          peerHandle,
+          peerPortrait: { kind:'vibe', vibe: vibeFromHandle(peerHandle), color: colorFromHandle(peerHandle) },
           chatId: result.chatId,
           myKeyPair: kp,
           peerPubKey: result.peerPubkey,
         });
       } catch (e) {
-        toast('pairing timed out — try again');
+        if (ps) ps.textContent = 'pairing timed out — go back and try again';
       } finally { State.pendingPairWaiter = null; }
     })();
   }
 }
 
-async function simulateScanFromOtherSide() {
-  if (SYNC_ENABLED) {
-    toast('with backend enabled, the other device drives this step');
+// Joiner flow — driven by /pair/CODE?pk=PUBKEY URLs that QR scans open.
+function detectJoinInvite() {
+  try {
+    const m = window.location.pathname.match(/^\/pair\/([A-Z2-9]{6,12})\/?$/);
+    if (!m) return null;
+    const url = new URL(window.location.href);
+    const hostPubkey = url.searchParams.get('pk') || null;
+    // Clean the URL so a reload doesn't re-trigger the invite (and so storage durability
+    // probes / persistence requests stay on the canonical origin).
+    try { history.replaceState(null, '', '/'); } catch {}
+    return { code: m[1], hostPubkey };
+  } catch { return null; }
+}
+
+async function maybeStartJoinFlow() {
+  const invite = State.joinInvite;
+  if (!invite) return;
+  const handle = normalizeHandle($('#myHandleField').value);
+  const portrait = State.pendingPortrait;
+  const ps = $('#pairStatus');
+  if (!handle || handle === '@' || !portrait) {
+    if (ps) ps.textContent = 'finish setting up to join';
     return;
   }
-  const myHandle = normalizeHandle($('#myHandleField').value);
-  if (!myHandle || myHandle === '@' || !State.pendingPortrait) {
-    toast('pick a handle and a portrait first');
-    return;
-  }
-  const peerHandle = pickPeerHandle();
+  if (State.pendingPairWaiter) return; // already in-flight
+  if (ps) ps.textContent = 'joining…';
 
-  if (!State.profile.defaultHandle) {
-    State.profile.defaultHandle = myHandle;
-    await saveProfile();
-  }
-
-  await finalizeChat({
-    myHandle,
-    myPortrait: State.pendingPortrait,
-    peerHandle,
-    peerPortrait: { kind:'vibe', vibe: vibeFromHandle(peerHandle), color: colorFromHandle(peerHandle) },
-    chatId: uid(10),
-    myKeyPair: State.pendingKeyPair,
-    peerPubKey: null,
-  });
+  State.pendingPairWaiter = (async () => {
+    try {
+      const kp = await Crypto.genKeyPair();
+      const result = await Sync.pairAsJoiner(invite.code, kp, handle);
+      // Defensive: if the URL included ?pk= and it doesn't match the server's response,
+      // refuse rather than silently trusting the server. Protects against a server that
+      // tries to swap pubkeys mid-pair.
+      if (invite.hostPubkey && invite.hostPubkey !== result.peerPubkey) {
+        throw new Error('host pubkey mismatch');
+      }
+      const peerHandle = result.peerHandle || '@host';
+      await finalizeChat({
+        myHandle: handle,
+        myPortrait: State.pendingPortrait,
+        peerHandle,
+        peerPortrait: { kind:'vibe', vibe: vibeFromHandle(peerHandle), color: colorFromHandle(peerHandle) },
+        chatId: result.chatId,
+        myKeyPair: kp,
+        peerPubKey: result.peerPubkey,
+      });
+      if (!State.profile.defaultHandle) {
+        State.profile.defaultHandle = handle;
+        await saveProfile();
+      }
+      State.joinInvite = null;
+      // Drop them straight into the new chat so the join feels immediate.
+      openChat(result.chatId);
+    } catch (e) {
+      console.warn('join failed', e);
+      if (ps) ps.textContent = 'link expired or invalid — ask them to start a new chat';
+    } finally { State.pendingPairWaiter = null; }
+  })();
 }
 
 async function finalizeChat({ myHandle, myPortrait, peerHandle, peerPortrait, chatId, myKeyPair, peerPubKey }) {
@@ -2729,12 +2773,25 @@ async function dismissOnboard() {
   $('#onboard').classList.add('hidden');
   State.onboarded = true;
   await saveKey(STORAGE_KEYS.seen, true);
+  // If we arrived via a /pair/CODE invite, route into the joiner flow now that
+  // the user has a handle. (For a returning user with a handle already set,
+  // init() will have routed directly into openNewChat() without going through
+  // onboarding — this branch only fires for first-time users.)
+  if (State.joinInvite) openNewChat();
 }
 
 /* ---------------- wire ---------------- */
 async function init() {
   await bootstrap();
   renderHome();
+
+  // Detect /pair/CODE invite from URL before any other UI routing. If present and the user
+  // is already onboarded, open the joiner UI immediately. If not onboarded, save the invite
+  // and dismissOnboard() will pick it up once they finish entering a handle.
+  State.joinInvite = detectJoinInvite();
+  if (State.joinInvite && State.onboarded) {
+    openNewChat();
+  }
 
   // Request persistence and probe for ephemeral storage. Deliberately NOT in dismissOnboard:
   // returning users skip dismissOnboard entirely (bootstrap branch just hides the overlay),
@@ -2832,8 +2889,6 @@ async function init() {
       toast('could not read that photo');
     }
   });
-
-  $('#simulateScan').addEventListener('click', simulateScanFromOtherSide);
 
   // chat composer
   const input = $('#messageInput');

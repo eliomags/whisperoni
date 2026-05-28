@@ -125,6 +125,15 @@ async function chatStatus(request, env, chatId) {
 
 // ---- pairing ---------------------------------------------------------------
 
+// Light validation for handles — the value is opaque to the server, but cap length and reject
+// control chars to keep KV small and the response sane. The chat-app already normalizes to
+// `@xxx` (3-24 chars) client-side; we accept anything that fits a reasonable display string.
+function sanitizeHandle(h) {
+  if (typeof h !== 'string') return '';
+  const s = h.replace(/[\x00-\x1f\x7f]/g, '').slice(0, 40);
+  return s;
+}
+
 async function pairInit(request, env) {
   const body = await request.json().catch(() => null);
   if (!body || !validCode(body.code) || !validPubkey(body.pubkey)) return json({ error: 'bad request' }, 400);
@@ -141,7 +150,11 @@ async function pairInit(request, env) {
 
   await env.PAIR_KV.put(
     `pair:${body.code}`,
-    JSON.stringify({ pubkey: body.pubkey, createdAt: Date.now() }),
+    JSON.stringify({
+      pubkey: body.pubkey,
+      handle: sanitizeHandle(body.handle),
+      createdAt: Date.now(),
+    }),
     { expirationTtl: 300 }
   );
   return json({ ok: true });
@@ -154,6 +167,8 @@ async function pairComplete(request, env) {
   const init = await env.PAIR_KV.get(`pair:${body.code}`, 'json');
   if (!init) return json({ error: 'expired or unknown' }, 410);
 
+  const joinerHandle = sanitizeHandle(body.handle);
+
   // Create the chat DO and initialize it with both pubkeys.
   const doId = env.CHAT_DO.newUniqueId();
   const stub = env.CHAT_DO.get(doId);
@@ -163,15 +178,24 @@ async function pairComplete(request, env) {
     body: JSON.stringify({ pubkeyA: init.pubkey, pubkeyB: body.pubkey }),
   });
 
-  // Signal the waiting host that the joiner is here.
+  // Signal the waiting host that the joiner is here, with the joiner's handle.
   await env.PAIR_KV.put(
     `complete:${body.code}`,
-    JSON.stringify({ chatId: doId.toString(), peerPubkey: body.pubkey }),
+    JSON.stringify({
+      chatId: doId.toString(),
+      peerPubkey: body.pubkey,
+      peerHandle: joinerHandle,
+    }),
     { expirationTtl: 60 }
   );
   await env.PAIR_KV.delete(`pair:${body.code}`);
 
-  return json({ chatId: doId.toString(), peerPubkey: init.pubkey });
+  // Return the host's identity to the joiner.
+  return json({
+    chatId: doId.toString(),
+    peerPubkey: init.pubkey,
+    peerHandle: init.handle || '',
+  });
 }
 
 async function pairWait(request, env) {
