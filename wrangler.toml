@@ -31,19 +31,13 @@ head_sampling_rate = 1.0
 # [limits] removed — Free plan does not allow cpu_ms override. The default Standard
 # pricing model's CPU budget is well above what /media/upload + R2 purge needs.
 
-# Custom-domain routes are commented out for the initial *.workers.dev deploy.
-# Uncomment AFTER:
-#   1. Verification steps 11-22 pass against the *.workers.dev URL.
-#   2. The four Vercel DNS records for whisperoni.com are deleted in the Cloudflare dashboard:
-#      - A     whisperoni.com           -> 76.76.21.21
-#      - CNAME www.whisperoni.com       -> cname.vercel-dns.com
-#      - TXT   _vercel.whisperoni.com   (x2)
-# Then re-deploy. custom_domain = true makes Wrangler create the Worker-bound DNS records.
-#
-# [[routes]]
-# pattern = "whisperoni.com"
-# custom_domain = true
-#
-# [[routes]]
-# pattern = "www.whisperoni.com"
-# custom_domain = true
+# Custom-domain routes. Wrangler manages the apex + www DNS records automatically on deploy.
+# The Worker 301-redirects www.whisperoni.com/* to the apex (see src/worker.js).
+
+[[routes]]
+pattern = "whisperoni.com"
+custom_domain = true
+
+[[routes]]
+pattern = "www.whisperoni.com"
+custom_domain = true
