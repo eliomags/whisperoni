@@ -8,7 +8,9 @@
 //
 // Storage layout (in this DO's storage):
 //   pubkeyA, pubkeyB        : strings (b64 P-256 raw pubkeys)
-//   nextSeq                 : monotonic counter for assigning seq numbers
+//   nextSeq:A, nextSeq:B    : per-direction monotonic counters (the sender's-direction
+//                             counter becomes the broadcast seq, so client_seq matches
+//                             server_seq for AES-GCM IV correctness)
 //   q:A, q:B                : array of { seq, payload, t } awaiting delivery to that side
 //   createdAt, lastActiveAt : ms timestamps
 
@@ -34,7 +36,12 @@ export class ChatDurableObject {
       if (existing) return new Response('already initialized', { status: 409 });
       await this.state.storage.put({
         pubkeyA, pubkeyB,
-        nextSeq: 0,
+        // Per-direction seq counters so the DO's broadcast seq matches the sender's
+        // client-side ++conn.sendCounter. A shared nextSeq breaks AES-GCM decryption on
+        // any round-trip after the second send-direction switch (the IV used to encrypt
+        // would not match the IV used to decrypt).
+        'nextSeq:A': 0,
+        'nextSeq:B': 0,
         'q:A': [], 'q:B': [],
         createdAt: Date.now(),
         lastActiveAt: Date.now(),
@@ -149,7 +156,11 @@ export class ChatDurableObject {
       if (typeof data.payload !== 'string' || data.payload.length > MAX_PAYLOAD)
         return ws.send(JSON.stringify({ type: 'error', reason: 'payload too large' }));
 
-      const seq = ((await this.state.storage.get('nextSeq')) || 0) + 1;
+      // Per-direction seq: nextSeq:A counts A's sends, nextSeq:B counts B's sends.
+      // The broadcast seq becomes the sender's-direction counter, which matches the
+      // sender's ++conn.sendCounter on the client. Receiver decrypts with the same seq.
+      const seqKey = `nextSeq:${meta.side}`;
+      const seq = ((await this.state.storage.get(seqKey)) || 0) + 1;
       const otherSide = meta.side === 'A' ? 'B' : 'A';
       const t = Date.now();
 
@@ -165,8 +176,8 @@ export class ChatDurableObject {
         }
       }
 
-      // Persist sequence + queue if undelivered.
-      const writes = { nextSeq: seq, lastActiveAt: t };
+      // Persist per-direction sequence + queue if undelivered.
+      const writes = { [seqKey]: seq, lastActiveAt: t };
       if (!delivered) {
         const qKey = `q:${otherSide}`;
         const queue = (await this.state.storage.get(qKey)) || [];
