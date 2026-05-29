@@ -134,6 +134,26 @@ function sanitizeHandle(h) {
   return s;
 }
 
+// Validate the portrait field exchanged through the pair protocol. Accepts only the two
+// shapes the client builds: handle-derived vibe (tiny) or a selfie dataURL (capped at 200KB
+// to keep pair KV entries small). Returns null for anything else so the peer falls through
+// to handle-derived display.
+function sanitizePortrait(p) {
+  if (!p || typeof p !== 'object') return null;
+  if (p.kind === 'vibe'
+      && typeof p.vibe  === 'string' && p.vibe.length  <= 32
+      && typeof p.color === 'string' && p.color.length <= 32) {
+    return { kind: 'vibe', vibe: p.vibe, color: p.color };
+  }
+  if (p.kind === 'selfie'
+      && typeof p.dataUrl === 'string'
+      && p.dataUrl.startsWith('data:image/')
+      && p.dataUrl.length <= 200 * 1024) {
+    return { kind: 'selfie', dataUrl: p.dataUrl };
+  }
+  return null;
+}
+
 async function pairInit(request, env) {
   const body = await request.json().catch(() => null);
   if (!body || !validCode(body.code) || !validPubkey(body.pubkey)) return json({ error: 'bad request' }, 400);
@@ -153,6 +173,7 @@ async function pairInit(request, env) {
     JSON.stringify({
       pubkey: body.pubkey,
       handle: sanitizeHandle(body.handle),
+      portrait: sanitizePortrait(body.portrait),
       createdAt: Date.now(),
     }),
     { expirationTtl: 300 }
@@ -178,13 +199,14 @@ async function pairComplete(request, env) {
     body: JSON.stringify({ pubkeyA: init.pubkey, pubkeyB: body.pubkey }),
   });
 
-  // Signal the waiting host that the joiner is here, with the joiner's handle.
+  // Signal the waiting host that the joiner is here, with the joiner's handle + portrait.
   await env.PAIR_KV.put(
     `complete:${body.code}`,
     JSON.stringify({
       chatId: doId.toString(),
       peerPubkey: body.pubkey,
       peerHandle: joinerHandle,
+      peerPortrait: sanitizePortrait(body.portrait),
     }),
     { expirationTtl: 60 }
   );
@@ -195,6 +217,7 @@ async function pairComplete(request, env) {
     chatId: doId.toString(),
     peerPubkey: init.pubkey,
     peerHandle: init.handle || '',
+    peerPortrait: init.portrait || null,
   });
 }
 

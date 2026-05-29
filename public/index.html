@@ -4,6 +4,13 @@
 <meta charset="utf-8" />
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
 <title>Whisperoni — chat without the noise</title>
+<!-- A9: PWA manifest + iOS Safari add-to-home-screen support. -->
+<link rel="manifest" href="/manifest.webmanifest" />
+<meta name="theme-color" content="#3a141d" />
+<meta name="apple-mobile-web-app-capable" content="yes" />
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
+<meta name="apple-mobile-web-app-title" content="Whisperoni" />
+<link rel="apple-touch-icon" href="/icons/icon-180.png" />
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Instrument+Serif:ital@0;1&family=DM+Sans:opsz,wght@9..40,300;9..40,400;9..40,500;9..40,600;9..40,700&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
@@ -66,7 +73,31 @@
     isolation:isolate;
   }
   @media (max-width: 480px){
+    /* Flatten the phone-frame mockup. Desktop keeps the framed look (it's intentional design). */
     .frame{width:100vw;height:100vh;height:100dvh;border-radius:0;box-shadow:none}
+
+    /* Drop the radial-gradient body background — it sits under a full-bleed frame on mobile,
+       wasted paint. Flat ink matches the frame interior. */
+    body{background:var(--ink)}
+
+    /* Honor the iOS notch + home indicator. Without env(safe-area-inset-*), 100vw treats the
+       device as a perfect rectangle and the composer's send button gets clipped off-screen,
+       which the user instinctively pinch-zooms to escape. */
+    .chat-head{
+      padding-left:  max(6px,  env(safe-area-inset-left));
+      padding-right: max(12px, env(safe-area-inset-right));
+    }
+    .composer{
+      padding-left:  max(12px, env(safe-area-inset-left));
+      padding-right: max(12px, env(safe-area-inset-right));
+      padding-bottom: max(16px, env(safe-area-inset-bottom));
+    }
+    /* Defensive: nothing inside the frame is allowed to overflow horizontally. */
+    html, body{overflow-x:hidden;max-width:100vw}
+    .frame, .screen, .chat-head, .composer, .messages, .pair-wrap{
+      max-width:100vw;
+      overflow-x:hidden;
+    }
   }
   .frame::after{
     /* edge glow */
@@ -356,6 +387,66 @@
     scrollbar-width:none;
   }
   .portrait-row::-webkit-scrollbar{display:none}
+  .portrait-hint{
+    flex:1;font-size:11.5px;color:var(--whisper);line-height:1.4;
+    letter-spacing:.02em;padding-left:6px;max-width:240px;
+  }
+
+  /* Bottom-sheet for photo-source picker (take / library / cancel). */
+  .sheet-overlay{
+    position:absolute;inset:0;background:rgba(0,0,0,.55);
+    display:none;align-items:flex-end;justify-content:center;
+    z-index:80;
+  }
+  .sheet-overlay.show{display:flex}
+  .sheet{
+    width:100%;max-width:420px;background:var(--ink-2);
+    border-top-left-radius:18px;border-top-right-radius:18px;
+    padding:8px 8px 14px;border-top:1px solid var(--line-2);
+    transform:translateY(20px);transition:transform .22s var(--ease);
+  }
+  .sheet-overlay.show .sheet{transform:none}
+  .sheet button{
+    display:block;width:100%;text-align:center;
+    background:transparent;border:0;color:var(--cream);
+    padding:14px 12px;font-size:15px;font-family:inherit;
+    cursor:pointer;border-radius:10px;
+  }
+  .sheet button:hover{background:var(--ink-3)}
+  .sheet .sheet-cancel{color:var(--whisper);margin-top:4px;border-top:1px solid var(--line-2);border-radius:0}
+
+  /* A6.1 socials picker grid + tile */
+  .soc-grid{display:grid;grid-template-columns:repeat(4,1fr);gap:10px;padding:6px 4px 16px}
+  .soc-pick{
+    position:relative;display:flex;flex-direction:column;align-items:center;justify-content:center;
+    gap:4px;padding:10px 6px;border-radius:12px;background:var(--ink-3);
+    border:1px solid var(--line-2);cursor:pointer;
+    min-height:78px;transition:transform .12s, border-color .15s, opacity .15s;
+  }
+  .soc-pick:hover{transform:translateY(-1px);border-color:var(--gold)}
+  .soc-pick.empty{opacity:.45}
+  .soc-pick.empty:hover{opacity:.85}
+  .soc-pick.sel{border-color:var(--gold);background:rgba(216,168,106,.08)}
+  .soc-pick .soc-ico{width:22px;height:22px;color:var(--cream)}
+  .soc-pick .soc-ico svg{width:22px;height:22px}
+  .soc-pick .soc-lbl{font-size:10.5px;color:var(--cream-dim);letter-spacing:.04em;text-transform:lowercase}
+  .soc-pick .soc-handle{font-family:'JetBrains Mono',monospace;font-size:9.5px;color:var(--whisper);max-width:60px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+  .soc-pick .soc-check{position:absolute;top:6px;right:8px;color:var(--gold);font-size:13px;font-weight:600}
+  /* Inline-add row replaces the tile content */
+  .soc-pick .soc-inline{flex:1;font-size:11.5px;padding:6px 8px}
+  .soc-pick .soc-save{background:var(--gold);border:0;border-radius:6px;color:var(--ink);font-size:11px;padding:6px 8px;font-weight:500;cursor:pointer}
+
+  /* Socials bubble (rendered platform icons that open the URL) */
+  .soc-row{display:flex;flex-wrap:wrap;gap:8px;margin-top:6px}
+  .soc-row a{
+    display:flex;align-items:center;gap:6px;
+    background:rgba(255,255,255,.06);border:1px solid var(--line-2);
+    color:var(--cream);text-decoration:none;
+    padding:6px 10px;border-radius:999px;font-size:11.5px;
+    font-family:'JetBrains Mono',monospace;letter-spacing:.02em;
+  }
+  .soc-row a:hover{border-color:var(--gold)}
+  .soc-row a svg{width:14px;height:14px}
   .portrait-pick{
     width:54px;height:54px;flex:0 0 54px;border-radius:50%;
     cursor:pointer;
@@ -893,19 +984,15 @@
             <label style="display:block;font-size:11px;color:var(--whisper);letter-spacing:.14em;text-transform:uppercase;margin-bottom:8px;font-weight:500;text-align:left">they'll see you as</label>
             <input class="input mono" id="myHandleField" placeholder="@something" maxlength="24" autocomplete="off" autocapitalize="off" autocorrect="off" spellcheck="false" />
 
-            <label style="display:block;font-size:11px;color:var(--whisper);letter-spacing:.14em;text-transform:uppercase;margin:22px 0 8px;font-weight:500;text-align:left">your portrait</label>
+            <label style="display:block;font-size:11px;color:var(--whisper);letter-spacing:.14em;text-transform:uppercase;margin:22px 0 8px;font-weight:500;text-align:left">your portrait <span style="color:var(--whisper);text-transform:none;letter-spacing:0;font-size:10.5px;font-weight:400;opacity:.7">— optional</span></label>
             <div class="portrait-row" id="portraitRow">
-              <button class="portrait-pick selfie-btn" id="selfieBtn" title="take a selfie">
+              <button class="portrait-pick selfie-btn" id="selfieBtn" title="add a photo">
                 <svg viewBox="0 0 24 24" fill="none" stroke="currentColor"><path d="M23 19a2 2 0 0 1-2 2H3a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h4l2-3h6l2 3h4a2 2 0 0 1 2 2z"/><circle cx="12" cy="13" r="4"/></svg>
               </button>
-              <div class="portrait-pick avatar vibe-aurora" data-vibe="aurora" style="--c1:#d8a86a;--c2:#b88a4a;--c3:#3a141d"></div>
-              <div class="portrait-pick avatar vibe-pulse"  data-vibe="pulse"  style="--c1:#e8a8b1;--c2:#c88891;--c3:#3a141d"></div>
-              <div class="portrait-pick avatar vibe-ripple" data-vibe="ripple" style="--c1:#8fb3c8;--c2:#6f93a8;--c3:#1a1a2e"></div>
-              <div class="portrait-pick avatar vibe-drift"  data-vibe="drift"  style="--c1:#8aa882;--c2:#6a8862;--c3:#1a2a1e"></div>
-              <div class="portrait-pick avatar vibe-sparkle" data-vibe="sparkle" style="--c1:#d8a86a;--c2:#e8a8b1;--c3:#1a1014"></div>
-              <div class="portrait-pick avatar vibe-bloom"  data-vibe="bloom"  style="--c1:#e8a8b1;--c2:#8fb3c8;--c3:#3a141d"></div>
+              <div class="portrait-hint" id="portraitHint">we'll use a circle from your handle unless you add a photo</div>
             </div>
-            <input type="file" accept="image/*" capture="user" id="selfieInput" style="display:none" />
+            <input type="file" accept="image/*" capture="user" id="selfieInputCamera" style="display:none" />
+            <input type="file" accept="image/*" id="selfieInputLibrary" style="display:none" />
           </div>
 
           <div class="qr-card appearing" id="qrCard" style="margin-top:30px">
@@ -930,9 +1017,8 @@
             <div class="n" id="chatHandle">@—</div>
             <div class="h"><span class="chip"><span class="dot"></span>linked</span></div>
           </div>
-          <button class="icon-btn" id="chatInfo">
-            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor"><circle cx="12" cy="12" r="9"/><line x1="12" y1="16" x2="12" y2="12"/><line x1="12" y1="8" x2="12.01" y2="8"/></svg>
-          </button>
+          <!-- A5a: (i) icon removed. Swipe-to-delete is the dissolve UX. -->
+          <div style="width:38px"></div>
         </header>
         <div class="proto-banner" id="protoBanner" hidden>
           this chat was created before a recent update. messages may not arrive correctly. swipe-delete and re-pair to fix.
@@ -944,8 +1030,8 @@
           <div class="attach-item location" data-attach="location"><div class="ico"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor"><path d="M21 10c0 7-9 13-9 13s-9-6-9-13a9 9 0 0 1 18 0z"/><circle cx="12" cy="10" r="3"/></svg></div><div class="lbl">place</div></div>
           <div class="attach-item contact" data-attach="contact"><div class="ico"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor"><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/></svg></div><div class="lbl">contact</div></div>
           <div class="attach-item socials" data-attach="socials"><div class="ico"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor"><rect x="2" y="2" width="20" height="20" rx="5"/><path d="M16 11.37A4 4 0 1 1 12.63 8 4 4 0 0 1 16 11.37z"/><line x1="17.5" y1="6.5" x2="17.51" y2="6.5"/></svg></div><div class="lbl">socials</div></div>
-          <div class="attach-item gif" data-attach="gif"><div class="ico"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor"><rect x="3" y="3" width="18" height="18" rx="2"/><text x="6" y="16" font-size="8" font-family="monospace" fill="currentColor" stroke="none">GIF</text></svg></div><div class="lbl">gif</div></div>
-          <div class="attach-item identity" data-attach="identity"><div class="ico"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor"><circle cx="12" cy="8" r="4"/><path d="M4 21v-1a8 8 0 0 1 16 0v1"/></svg></div><div class="lbl">identity</div></div>
+          <!-- A6: gif + identity tiles dropped. renderBubble/messagePreview kept their
+               legacy cases for backward compat with pre-v1.5 chats that might have stored them. -->
           <div class="attach-item story" data-attach="story"><div class="ico"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor"><polygon points="12 2 15 9 22 9 17 14 19 22 12 18 5 22 7 14 2 9 9 9 12 2"/></svg></div><div class="lbl">story</div></div>
         </div>
         <div class="composer">
@@ -999,7 +1085,9 @@
               <svg viewBox="0 0 24 24" fill="none" stroke="currentColor"><rect x="3" y="3" width="18" height="18" rx="2"/><circle cx="8.5" cy="8.5" r="1.5"/><polyline points="21 15 16 10 5 21"/></svg>
               photo
             </button>
-            <button data-kind="video">
+            <!-- A4: video stories hidden in v1.5 — they require R2 upload + media-key
+                 coordination not yet implemented for video. Re-enable in Phase B. -->
+            <button data-kind="video" hidden>
               <svg viewBox="0 0 24 24" fill="none" stroke="currentColor"><polygon points="23 7 16 12 23 17 23 7"/><rect x="1" y="5" width="15" height="14" rx="2"/></svg>
               video
             </button>
@@ -1046,6 +1134,12 @@
           </div>
 
           <div class="group">
+            <div class="group-title">your socials</div>
+            <p style="color:var(--whisper);font-size:12px;line-height:1.5;margin:0 0 14px">Add your handles once here. When you tap socials in a chat, only the ones you've filled in are sendable; tap a greyed icon to add inline.</p>
+            <div id="socialsFields"></div>
+          </div>
+
+          <div class="group">
             <div class="group-title">data</div>
             <div class="settings-row">
               <div class="lbl">chats stored</div>
@@ -1058,12 +1152,24 @@
             <button class="btn btn-ghost" style="margin-top:16px;width:100%" id="wipeBtn">wipe everything</button>
           </div>
 
+          <!-- A9: install group. Chrome/Android shows the install button (beforeinstallprompt).
+               iOS Safari shows a small "Tap Share → Add to Home Screen" hint. Hidden entirely
+               when the app is already running in standalone mode. -->
+          <div class="group" id="installGroup" hidden>
+            <div class="group-title">install</div>
+            <button class="btn btn-primary" id="installBtn" hidden style="width:100%">install whisperoni</button>
+            <p id="installHintIos" hidden style="color:var(--whisper);font-size:12.5px;line-height:1.6;margin:0">
+              tap the <strong>Share</strong> button in Safari, then choose <strong>Add to Home Screen</strong> — Whisperoni will open like a real app, no browser chrome.
+            </p>
+          </div>
+
           <div class="group">
             <div class="group-title">the truth</div>
             <p style="color:var(--whisper);font-size:12.5px;line-height:1.6;margin:0">
-              This is a prototype. All data lives on this device only — no account, no server.
-              In a real shipping version, an end-to-end encrypted relay would be needed to deliver messages between devices.
-              The QR pairing flow is real to the UX, simulated to the network.
+              Whisperoni runs no accounts and stores no message content. When two devices pair via QR,
+              they exchange public keys; messages are end-to-end encrypted in your browser and the server
+              only relays ciphertext it cannot read. Your chats live on this device. Closing the browser
+              or wiping storage ends them.
             </p>
           </div>
         </div>
@@ -1071,6 +1177,43 @@
     </div>
 
     <div class="toast" id="toast"></div>
+
+    <!-- photo-source bottom-sheet (camera vs library) — shared by selfie picker (A2)
+         and the in-chat photo attachment (A6). -->
+    <div class="sheet-overlay" id="photoSheet">
+      <div class="sheet">
+        <button type="button" data-source="camera">take a photo</button>
+        <button type="button" data-source="library">choose from library</button>
+        <button type="button" class="sheet-cancel" data-source="cancel">cancel</button>
+      </div>
+    </div>
+    <!-- in-chat photo attachment inputs (kept hidden) -->
+    <input type="file" accept="image/*" capture="environment" id="attachPhotoCamera"  style="display:none" />
+    <input type="file" accept="image/*"                       id="attachPhotoLibrary" style="display:none" />
+
+    <!-- Socials picker (A6.1) -->
+    <div class="modal-backdrop" id="socialsPickerOverlay">
+      <div class="modal" style="max-width:380px">
+        <div class="modal-title">pick socials to send</div>
+        <div class="soc-grid" id="socialsPickerGrid"></div>
+        <div class="modal-actions">
+          <button class="btn btn-ghost" id="socialsPickerCancel">cancel</button>
+          <button class="btn btn-primary" id="socialsPickerSend">send</button>
+        </div>
+      </div>
+    </div>
+
+    <!-- generic mini-form modal for contact / inline socials input -->
+    <div class="modal-backdrop" id="formBackdrop">
+      <div class="modal" id="formModal">
+        <div class="modal-title" id="formTitle">share</div>
+        <div class="modal-body" id="formBody"></div>
+        <div class="modal-actions">
+          <button class="btn btn-ghost" id="formCancel">cancel</button>
+          <button class="btn btn-primary" id="formOk">send</button>
+        </div>
+      </div>
+    </div>
 
     <!-- in-app confirm modal (window.confirm is blocked in many webviews) -->
     <div class="modal-backdrop" id="modalBackdrop">
@@ -1150,6 +1293,14 @@ const Crypto = {
     const pt = await crypto.subtle.decrypt({name:'AES-GCM', iv}, chainKey, unb64(b64Ct));
     return new TextDecoder().decode(pt);
   },
+  // Raw byte-level AES-GCM helpers for R2-routed media. The text-message helpers above
+  // bind IV to a counter; media uses a fresh random IV per blob. Same AES-GCM under the hood.
+  async encryptRaw(key, iv, bytes) {
+    return new Uint8Array(await crypto.subtle.encrypt({name:'AES-GCM', iv}, key, bytes));
+  },
+  async decryptRaw(key, iv, ciphertext) {
+    return new Uint8Array(await crypto.subtle.decrypt({name:'AES-GCM', iv}, key, ciphertext));
+  },
 };
 function b64(u8) { let s=''; for (const b of u8) s+=String.fromCharCode(b); return btoa(s); }
 function unb64(s) { const bin=atob(s); const u=new Uint8Array(bin.length); for(let i=0;i<bin.length;i++)u[i]=bin.charCodeAt(i); return u; }
@@ -1158,11 +1309,11 @@ function unb64(s) { const bin=atob(s); const u=new Uint8Array(bin.length); for(l
 const Sync = {
   sockets: new Map(), // chatId -> {ws, sendChain, recvChain, sendCounter, ready, opened}
 
-  async pairAsHost(code, kp, handle) {
-    // POST /pair/init {code, pubkey, handle}; then poll /pair/wait until joiner arrives.
+  async pairAsHost(code, kp, handle, portrait) {
+    // POST /pair/init {code, pubkey, handle, portrait}; then poll /pair/wait until joiner arrives.
     const r = await fetch(`${WHISPERONI_API_BASE}/pair/init`, {
       method:'POST', headers:{'content-type':'application/json'},
-      body: JSON.stringify({code, pubkey: kp.pubKey, handle}),
+      body: JSON.stringify({code, pubkey: kp.pubKey, handle, portrait}),
     });
     if (!r.ok) throw new Error('pair init failed');
     return await Sync.waitForPartner(code);
@@ -1181,13 +1332,13 @@ const Sync = {
     throw new Error('partner did not arrive');
   },
 
-  async pairAsJoiner(code, kp, handle) {
+  async pairAsJoiner(code, kp, handle, portrait) {
     const r = await fetch(`${WHISPERONI_API_BASE}/pair/complete`, {
       method:'POST', headers:{'content-type':'application/json'},
-      body: JSON.stringify({code, pubkey: kp.pubKey, handle}),
+      body: JSON.stringify({code, pubkey: kp.pubKey, handle, portrait}),
     });
     if (!r.ok) throw new Error('pair complete failed');
-    return await r.json(); // {chatId, peerPubkey, peerHandle}
+    return await r.json(); // {chatId, peerPubkey, peerHandle, peerPortrait}
   },
 
   async connectChat(chat, onMessage) {
@@ -1265,7 +1416,103 @@ const Sync = {
     chat.sendCounter = seq;
     await saveChat(chat);
   },
+
+  // Send with a pre-reserved seq. Used by sendMediaAttachment so the seq used to derive
+  // the media key matches the seq used to encrypt the WS envelope. Without this, two
+  // separate ++sendCounter calls would diverge and the receiver's media key derivation
+  // would not match the sender's.
+  async sendOverAt(chat, seq, payload) {
+    const conn = Sync.sockets.get(chat.id);
+    if (!conn || conn.ws.readyState !== WebSocket.OPEN) throw new Error('not connected');
+    const ciphertext = await Crypto.encrypt(conn.sendChain, seq, JSON.stringify(payload));
+    conn.ws.send(JSON.stringify({ type:'send', seq, payload: ciphertext }));
+    chat.sendCounter = seq;
+    await saveChat(chat);
+  },
 };
+
+/* ---------------- R2 media helpers (encrypted blob upload/download) ---------------- */
+
+// Upload an encrypted blob to /media/upload. The caller reserves the seq beforehand
+// (via ++conn.sendCounter) so the media key derivation matches the WS envelope it'll send.
+async function uploadEncryptedMedia(chat, blobBytes, seq) {
+  const iv = crypto.getRandomValues(new Uint8Array(12));                       // fresh random IV
+  const shared   = await Crypto.deriveShared(chat.myPrivJwk, chat.peerPubKey); // on-demand ECDH
+  const mediaKey = await Crypto.chainKey(shared, `media|${chat.id}|${seq}`);   // per-blob key
+  const ciphertext = await Crypto.encryptRaw(mediaKey, iv, blobBytes);
+  // Hash over CIPHERTEXT — receiver can reject tampered blobs before spending CPU on decrypt
+  const hashBytes  = new Uint8Array(await crypto.subtle.digest('SHA-256', ciphertext));
+  const contentHash = Array.from(hashBytes).map(b => b.toString(16).padStart(2,'0')).join('');
+  const base = WHISPERONI_API_BASE || window.location.origin;
+  const r = await fetch(`${base}/media/upload`, {
+    method: 'POST',
+    headers: {
+      'x-chat-id': chat.id,
+      'x-content-hash': contentHash,
+      'content-type': 'application/octet-stream',
+    },
+    body: ciphertext,
+  });
+  if (!r.ok) throw new Error('media upload failed: ' + r.status);
+  const j = await r.json();
+  return { mediaKey: j.key, mediaHash: contentHash, iv: b64(iv), seq };
+}
+
+// Atomic send: reserves one seq, uploads, then ships the envelope at the same seq.
+async function sendMediaAttachment(chat, blobBytes, envelopeExtras) {
+  const conn = Sync.sockets.get(chat.id);
+  if (!conn || conn.ws.readyState !== WebSocket.OPEN) throw new Error('not connected');
+  const seq = ++conn.sendCounter;
+  const { mediaKey, mediaHash, iv } = await uploadEncryptedMedia(chat, blobBytes, seq);
+  await Sync.sendOverAt(chat, seq, { ...envelopeExtras, mediaKey, mediaHash, iv, seq });
+  return { mediaKey, mediaHash, iv, seq };
+}
+
+// Receive-side: fetch the R2 blob, verify hash, decrypt with the per-blob key derived
+// from the same chat/seq the sender used. Returns a Blob (with the right MIME type).
+async function fetchAndDecryptMedia(chat, m) {
+  const base = WHISPERONI_API_BASE || window.location.origin;
+  const r = await fetch(`${base}/media/${m.mediaKey}`);
+  if (!r.ok) throw new Error('media fetch failed: ' + r.status);
+  const ciphertext = new Uint8Array(await r.arrayBuffer());
+  // Verify hash BEFORE decrypt
+  const hashBytes = new Uint8Array(await crypto.subtle.digest('SHA-256', ciphertext));
+  const contentHash = Array.from(hashBytes).map(b => b.toString(16).padStart(2,'0')).join('');
+  if (contentHash !== m.mediaHash) throw new Error('media hash mismatch');
+  const shared   = await Crypto.deriveShared(chat.myPrivJwk, chat.peerPubKey);
+  const mediaKey = await Crypto.chainKey(shared, `media|${chat.id}|${m.seq}`);
+  const plaintext = await Crypto.decryptRaw(mediaKey, unb64(m.iv), ciphertext);
+  return new Blob([plaintext], { type: m.mimeType || 'application/octet-stream' });
+}
+
+// Lazy single-flight fetch — kicks off fetchAndDecryptMedia at most once per mediaKey,
+// stores the resulting Blob URL on the message object as m._blobUrl, and triggers a
+// re-render so the bubble/story swaps loading → content.
+const __mediaFetches = new Map();  // mediaKey → in-flight Promise
+function ensureMediaFetched(chat, m) {
+  if (!m || !m.mediaKey || m._blobUrl || __mediaFetches.has(m.mediaKey)) return;
+  const p = fetchAndDecryptMedia(chat, m).then(blob => {
+    m._blobUrl = URL.createObjectURL(blob);
+    __mediaFetches.delete(m.mediaKey);
+    if (State.currentChatId === chat.id) renderMessages();
+    renderHome();
+  }).catch(e => {
+    __mediaFetches.delete(m.mediaKey);
+    console.warn('media fetch failed', m.mediaKey, e);
+    m._fetchError = String(e.message || e);
+    if (State.currentChatId === chat.id) renderMessages();
+  });
+  __mediaFetches.set(m.mediaKey, p);
+}
+
+// Cleanup: revoke Blob URLs across messages + stories before a chat record is destroyed.
+function revokeChatBlobUrls(chat) {
+  if (!chat) return;
+  const revoke = arr => { for (const x of arr || []) if (x && x._blobUrl) URL.revokeObjectURL(x._blobUrl); };
+  revoke(chat.messages);
+  revoke(chat.peerStories);
+  revoke(chat.myStories);
+}
 
 const $  = (s, r=document) => r.querySelector(s);
 const $$ = (s, r=document) => Array.from(r.querySelectorAll(s));
@@ -1400,31 +1647,27 @@ async function saveChats() {
 let __bannerDismissed = false;  // in-memory only; never persisted (incognito wipe makes any
                                 // persisted dismiss flag a lie).
 
+// A7: simplified — drop the quota heuristic entirely. Show the banner whenever
+// `navigator.storage.persisted()` is false (or the API is missing). Catches iOS Safari
+// incognito (where persist() always returns false AND quota fuzzing defeats the old check)
+// AND any first-time visit before persistence is granted. More honest than guessing.
 async function assessStorageDurability() {
   if (typeof navigator === 'undefined' || !navigator.storage || !navigator.storage.persisted) {
-    return { durable: false, ephemeral: false };
+    return { durable: false, ephemeral: true };  // no API → treat as ephemeral
   }
   const already = await navigator.storage.persisted();
-  if (already) return { durable: true, ephemeral: false };
-  let ephemeral = false;
-  try {
-    const est = await navigator.storage.estimate();
-    // Heuristic only. Browsers fuzz the incognito quota to resist fingerprinting; <300MB is
-    // suspicious. Treat as advisory; NEVER branch behavior on this — only show/hide a banner.
-    ephemeral = est.quota !== undefined && est.quota < 300 * 1024 * 1024;
-  } catch {}
-  return { durable: false, ephemeral };
+  return { durable: already, ephemeral: !already };
 }
 
 async function requestPersistence() {
-  if (typeof navigator === 'undefined' || !navigator.storage || !navigator.storage.persist) return;
+  if (typeof navigator === 'undefined' || !navigator.storage || !navigator.storage.persist) {
+    showEphemeralBanner();
+    return;
+  }
   try {
     const granted = await navigator.storage.persist();
-    if (!granted) {
-      const { ephemeral } = await assessStorageDurability();
-      if (ephemeral) showEphemeralBanner();
-    }
-  } catch { /* permission denied or unsupported */ }
+    if (!granted) showEphemeralBanner();
+  } catch { showEphemeralBanner(); }
 }
 
 function showEphemeralBanner() {
@@ -1433,7 +1676,7 @@ function showEphemeralBanner() {
   const b = document.createElement('div');
   b.id = 'ephemeralBanner';
   b.className = 'ephemeral-banner';
-  b.innerHTML = '<span class="glyph">◇</span><span>looks like a private window — your chats may not survive closing it</span><button type="button" id="ephemeralBannerClose" aria-label="dismiss banner">×</button>';
+  b.innerHTML = '<span class="glyph">◇</span><span>your chats live only in this browser window. closing it ends them. opening this link in a new private window starts a new chat.</span><button type="button" id="ephemeralBannerClose" aria-label="dismiss banner">×</button>';
   document.body.appendChild(b);
   const closeBtn = b.querySelector('#ephemeralBannerClose');
   closeBtn.addEventListener('click', () => {
@@ -1482,6 +1725,8 @@ async function bootstrap() {
   await migrateFromWindowStorage();
 
   State.profile   = await loadKey(STORAGE_KEYS.profile, { defaultHandle:'' });
+  // A6.1: migration — older profiles don't have a socials map. Initialize on demand.
+  if (!State.profile.socials || typeof State.profile.socials !== 'object') State.profile.socials = {};
   State.onboarded = await loadKey(STORAGE_KEYS.seen, false);
   State.chats     = await loadAllChats();
 
@@ -1514,6 +1759,68 @@ async function bootstrap() {
 }
 
 async function saveProfile() { await saveKey(STORAGE_KEYS.profile, State.profile); }
+
+/* ---------------- A6.1 social platforms registry ----------------
+   Adding a new platform = one entry. Each entry:
+   - key:        stable id used as storage key in profile.socials and on each wire payload link
+   - label:      display name
+   - placeholder: input placeholder shown in Settings + inline-add
+   - urlBuilder:  given the saved handle, returns the URL to open on tap (https-based so the
+                  mobile OS intercepts and routes to the installed app if present)
+   - icon:       inline SVG (kept small — one-line per platform)
+   - normalize:  rewrite a user-typed handle into a canonical form before save (strip leading @, etc.)
+*/
+const SOCIAL_PLATFORMS = [
+  {
+    key:'instagram', label:'instagram', placeholder:'@yourhandle',
+    normalize: h => h.replace(/^@/, '').trim(),
+    urlBuilder: h => `https://instagram.com/${encodeURIComponent(h)}`,
+    icon: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6"><rect x="3" y="3" width="18" height="18" rx="5"/><circle cx="12" cy="12" r="4"/><circle cx="17.5" cy="6.5" r=".8" fill="currentColor"/></svg>',
+  },
+  {
+    key:'x', label:'x', placeholder:'@yourhandle',
+    normalize: h => h.replace(/^@/, '').trim(),
+    urlBuilder: h => `https://x.com/${encodeURIComponent(h)}`,
+    icon: '<svg viewBox="0 0 24 24" fill="currentColor"><path d="M18.244 3H21l-6.49 7.42L22 21h-6.84l-4.78-6.27L4.6 21H2l6.94-7.94L2 3h6.92l4.31 5.7L18.24 3Zm-2.4 16.2h1.5L7.27 4.7H5.7l10.14 14.5Z"/></svg>',
+  },
+  {
+    key:'facebook', label:'facebook', placeholder:'username or id',
+    normalize: h => h.trim(),
+    urlBuilder: h => `https://facebook.com/${encodeURIComponent(h)}`,
+    icon: '<svg viewBox="0 0 24 24" fill="currentColor"><path d="M22 12.07C22 6.5 17.52 2 12 2S2 6.5 2 12.07c0 5.02 3.66 9.19 8.44 9.93v-7.03H7.9v-2.9h2.54V9.85c0-2.51 1.49-3.9 3.78-3.9 1.09 0 2.24.2 2.24.2v2.47h-1.26c-1.24 0-1.63.77-1.63 1.56v1.88h2.78l-.44 2.9h-2.34V22c4.78-.74 8.43-4.91 8.43-9.93Z"/></svg>',
+  },
+  {
+    key:'linkedin', label:'linkedin', placeholder:'slug-after-/in/',
+    normalize: h => h.replace(/^\//, '').replace(/^in\//, '').trim(),
+    urlBuilder: h => `https://linkedin.com/in/${encodeURIComponent(h)}`,
+    icon: '<svg viewBox="0 0 24 24" fill="currentColor"><path d="M4.98 3.5C4.98 4.88 3.87 6 2.5 6S0 4.88 0 3.5 1.12 1 2.5 1s2.48 1.12 2.48 2.5ZM.22 8.06h4.56V22H.22V8.06Zm7.61 0h4.37v1.9h.06c.61-1.15 2.09-2.37 4.31-2.37 4.61 0 5.46 3.04 5.46 6.99V22h-4.56v-6.94c0-1.66-.03-3.8-2.31-3.8-2.31 0-2.67 1.81-2.67 3.68V22H7.83V8.06Z"/></svg>',
+  },
+  {
+    key:'whatsapp', label:'whatsapp', placeholder:'+1 555 123 4567',
+    normalize: h => h.replace(/[^\d+]/g, ''),
+    urlBuilder: h => `https://wa.me/${encodeURIComponent(h.replace(/^\+/, ''))}`,
+    icon: '<svg viewBox="0 0 24 24" fill="currentColor"><path d="M17.5 14.4c-.3-.15-1.78-.88-2.06-.98-.28-.1-.48-.15-.68.15s-.78.97-.96 1.17c-.18.2-.35.22-.65.07-.3-.15-1.27-.47-2.41-1.49-.89-.79-1.5-1.77-1.67-2.07-.18-.3-.02-.46.13-.6.13-.13.3-.35.45-.52.15-.18.2-.3.3-.5.1-.2.05-.37-.02-.52-.08-.15-.68-1.63-.93-2.24-.24-.59-.49-.51-.68-.51l-.58-.01c-.2 0-.52.07-.79.37-.27.3-1.04 1.02-1.04 2.49 0 1.47 1.06 2.89 1.21 3.09.15.2 2.09 3.19 5.07 4.47.71.31 1.26.49 1.69.63.71.22 1.35.19 1.86.12.57-.09 1.78-.73 2.03-1.43.25-.7.25-1.3.18-1.43-.07-.13-.27-.2-.57-.35ZM12 2C6.48 2 2 6.48 2 12c0 1.78.46 3.48 1.34 5L2 22l5.18-1.32A9.96 9.96 0 0 0 12 22c5.52 0 10-4.48 10-10S17.52 2 12 2Zm0 18a8 8 0 0 1-4.07-1.12l-.29-.17-3.07.78.82-3-.19-.31A8 8 0 1 1 20 12c0 4.42-3.58 8-8 8Z"/></svg>',
+  },
+  {
+    key:'phone', label:'phone', placeholder:'+1 555 123 4567',
+    normalize: h => h.replace(/[^\d+]/g, ''),
+    urlBuilder: h => `tel:${h}`,
+    icon: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6"><path d="M22 16.92v3a2 2 0 0 1-2.18 2 19.86 19.86 0 0 1-8.63-3.07 19.5 19.5 0 0 1-6-6 19.86 19.86 0 0 1-3.07-8.67A2 2 0 0 1 4.11 2h3a2 2 0 0 1 2 1.72c.13.9.36 1.78.7 2.62a2 2 0 0 1-.45 2.11L8.09 9.91a16 16 0 0 0 6 6l1.46-1.27a2 2 0 0 1 2.11-.45c.84.33 1.72.57 2.62.7A2 2 0 0 1 22 16.92Z"/></svg>',
+  },
+  {
+    key:'email', label:'email', placeholder:'them@example.com',
+    normalize: h => h.trim(),
+    urlBuilder: h => `mailto:${encodeURIComponent(h)}`,
+    icon: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6"><rect x="3" y="5" width="18" height="14" rx="2"/><path d="m3 7 9 6 9-6"/></svg>',
+  },
+  {
+    key:'arena', label:'are.na', placeholder:'yourhandle',
+    normalize: h => h.replace(/^\//, '').replace(/^@/, '').trim(),
+    urlBuilder: h => `https://www.are.na/${encodeURIComponent(h)}`,
+    icon: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6"><circle cx="6" cy="6" r="2"/><circle cx="18" cy="6" r="2"/><circle cx="6" cy="18" r="2"/><circle cx="18" cy="18" r="2"/><line x1="8" y1="6" x2="16" y2="6"/><line x1="8" y1="18" x2="16" y2="18"/><line x1="6" y1="8" x2="6" y2="16"/><line x1="18" y1="8" x2="18" y2="16"/></svg>',
+  },
+];
+function platformByKey(k) { return SOCIAL_PLATFORMS.find(p => p.key === k); }
 
 /* ---------------- routing ---------------- */
 const SCREEN_STACK = ['home'];
@@ -1737,14 +2044,15 @@ function renderHome() {
 function messagePreview(m) {
   switch(m.kind) {
     case 'text': return m.body;
-    case 'audio': return '🎤 voice — ' + m.duration + 's';
+    case 'audio': return '🎤 voice — ' + (m.duration||0) + 's';
     case 'media': return '📷 photo';
-    case 'location': return '📍 ' + (m.label || 'location');
+    case 'location': return m.lat !== undefined ? '📍 location' : '📍 ' + (m.label || 'location');
     case 'contact': return '👤 ' + (m.handle || 'contact');
-    case 'identity': return '🪪 identity card';
     case 'socials': return '✦ socials';
-    case 'gif': return 'GIF';
     case 'story-share': return '✦ story';
+    // Legacy: identity + gif kinds were dropped in A6 but pre-v1.5 chats may have stored them.
+    case 'identity': return '🪪 identity card';
+    case 'gif': return 'GIF';
     default: return '—';
   }
 }
@@ -1816,26 +2124,36 @@ async function openNewChat() {
   State.pendingPairCode = uid(6);
   State.pendingPortrait = null;
 
-  // Joiner mode: arrived via /pair/CODE URL. Hide host-only UI (code + QR), retitle screen.
+  // Joiner mode: arrived via /pair/CODE URL. Hide host-only UI (code + QR + portrait picker),
+  // retitle screen. Joiner's portrait is always handle-derived; they don't pick.
   const joining = !!State.joinInvite;
   const codeRow = $('#codeText') && $('#codeText').parentElement;
   const title = $('#newChatTitle');
+  const portraitRow = $('#portraitRow');
+  // The "your portrait" label is the immediately-preceding sibling of #portraitRow.
+  const portraitLabel = portraitRow && portraitRow.previousElementSibling;
   if (joining) {
     if (title) title.textContent = 'Join the chat';
     $('#codeText').textContent = '';
     if (codeRow) codeRow.style.display = 'none';
+    if (portraitRow)   portraitRow.style.display   = 'none';
+    if (portraitLabel) portraitLabel.style.display = 'none';
   } else {
     if (title) title.textContent = 'Start a chat';
     $('#codeText').textContent = State.pendingPairCode.split('').join(' ');
     if (codeRow) codeRow.style.display = '';
+    if (portraitRow)   portraitRow.style.display   = '';
+    if (portraitLabel) portraitLabel.style.display = '';
   }
 
   $('#myHandleField').value = State.profile.defaultHandle || '';
 
-  // reset portrait selection visuals
-  $$('#portraitRow .portrait-pick').forEach(el => el.classList.remove('selected'));
+  // Reset portrait state — A2 removed the vibe circles, so only the camera button remains.
   const selfieBtn = $('#selfieBtn');
+  selfieBtn.classList.remove('selected');
   selfieBtn.innerHTML = `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor"><path d="M23 19a2 2 0 0 1-2 2H3a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h4l2-3h6l2 3h4a2 2 0 0 1 2 2z"/><circle cx="12" cy="13" r="4"/></svg>`;
+  const ph = $('#portraitHint');
+  if (ph) ph.textContent = 'we\'ll use a circle from your handle unless you add a photo';
 
   // hide QR until both fields are filled (host) — joiner never shows QR
   $('#qrCard').classList.remove('in');
@@ -1890,17 +2208,21 @@ function maybeShowQR() {
   requestAnimationFrame(() => $('#qrCard').classList.add('in'));
   if (ps) ps.textContent = 'waiting for them to scan';
 
-  // Host: register pubkey + handle, then poll until the joiner completes the pair.
+  // Host: register pubkey + handle + portrait, then poll until joiner completes the pair.
+  // Portrait sent: user's selfie if they tapped the camera, otherwise handle-derived vibe.
+  const myPortrait = State.pendingPortrait
+    || { kind:'vibe', vibe: vibeFromHandle(handle), color: colorFromHandle(handle) };
   if (SYNC_ENABLED && !State.pendingPairWaiter) {
     State.pendingPairWaiter = (async () => {
       try {
-        const result = await Sync.pairAsHost(code, kp, handle);
+        const result = await Sync.pairAsHost(code, kp, handle, myPortrait);
         const peerHandle = result.peerHandle || '@friend';
         await finalizeChat({
           myHandle: handle,
-          myPortrait: State.pendingPortrait,
+          myPortrait,
           peerHandle,
-          peerPortrait: { kind:'vibe', vibe: vibeFromHandle(peerHandle), color: colorFromHandle(peerHandle) },
+          // Use the portrait the joiner actually sent; fall back to handle-derived if missing.
+          peerPortrait: result.peerPortrait || { kind:'vibe', vibe: vibeFromHandle(peerHandle), color: colorFromHandle(peerHandle) },
           chatId: result.chatId,
           myKeyPair: kp,
           peerPubKey: result.peerPubkey,
@@ -1930,19 +2252,22 @@ async function maybeStartJoinFlow() {
   const invite = State.joinInvite;
   if (!invite) return;
   const handle = normalizeHandle($('#myHandleField').value);
-  const portrait = State.pendingPortrait;
   const ps = $('#pairStatus');
-  if (!handle || handle === '@' || !portrait) {
-    if (ps) ps.textContent = 'finish setting up to join';
+  // A3: portrait picker is gone in joiner mode. Only handle is required to auto-pair.
+  if (!handle || handle === '@') {
+    if (ps) ps.textContent = 'enter a handle to join';
     return;
   }
   if (State.pendingPairWaiter) return; // already in-flight
   if (ps) ps.textContent = 'joining…';
 
+  // Joiner's portrait is always handle-derived (no picker shown).
+  const myPortrait = { kind:'vibe', vibe: vibeFromHandle(handle), color: colorFromHandle(handle) };
+
   State.pendingPairWaiter = (async () => {
     try {
       const kp = await Crypto.genKeyPair();
-      const result = await Sync.pairAsJoiner(invite.code, kp, handle);
+      const result = await Sync.pairAsJoiner(invite.code, kp, handle, myPortrait);
       // Defensive: if the URL included ?pk= and it doesn't match the server's response,
       // refuse rather than silently trusting the server. Protects against a server that
       // tries to swap pubkeys mid-pair.
@@ -1952,9 +2277,10 @@ async function maybeStartJoinFlow() {
       const peerHandle = result.peerHandle || '@host';
       await finalizeChat({
         myHandle: handle,
-        myPortrait: State.pendingPortrait,
+        myPortrait,
         peerHandle,
-        peerPortrait: { kind:'vibe', vibe: vibeFromHandle(peerHandle), color: colorFromHandle(peerHandle) },
+        // Use the host's actual portrait if returned; fall back to handle-derived.
+        peerPortrait: result.peerPortrait || { kind:'vibe', vibe: vibeFromHandle(peerHandle), color: colorFromHandle(peerHandle) },
         chatId: result.chatId,
         myKeyPair: kp,
         peerPubKey: result.peerPubkey,
@@ -2025,9 +2351,56 @@ async function finalizeChat({ myHandle, myPortrait, peerHandle, peerPortrait, ch
 async function onIncomingMessage(chatId, payload, seq, t) {
   const chat = State.chats.find(c => c.id === chatId);
   if (!chat) return;
+  // A4: story envelopes route to handleIncomingStory (peer stories) — they're NEVER pushed
+  // into chat.messages. Named 'story-envelope' (not 'story') to avoid colliding with the
+  // existing `case 'story-share'` bubble template at renderBubble.
+  if (payload.kind === 'story-envelope') {
+    await handleIncomingStory(chat, { ...payload, seq, t: new Date(t).toISOString() });
+    return;
+  }
   // dedupe by seq
   if (chat.messages.some(m => m.seq === seq && m.from === 'them')) return;
-  await addPeerMessage(chatId, { ...payload, seq, t: new Date(t).toISOString() });
+  const m = { ...payload, seq, t: new Date(t).toISOString() };
+  await addPeerMessage(chatId, m);
+  // R2-routed media (photo/voice): trigger lazy fetch+decrypt so the bubble can swap
+  // its loading placeholder for the real content.
+  if ((m.kind === 'media' || m.kind === 'audio') && m.mediaKey) {
+    // Re-fetch from the saved message object on chat.messages (addPeerMessage pushed it).
+    const stored = chat.messages.find(x => x.seq === m.seq && x.from === 'them');
+    if (stored) ensureMediaFetched(chat, stored);
+  }
+}
+
+// Handle a story envelope: build the local story object (decrypting image stories on the
+// fly via the same R2 helper used for media attachments) and push it to peer stories.
+async function handleIncomingStory(chat, env) {
+  if (!env || !env.id) return;
+  chat.peerStories = chat.peerStories || [];
+  if (chat.peerStories.some(s => s.id === env.id)) return; // dedupe
+  let story;
+  if (env.mediaKind === 'text' && env.payload) {
+    story = { id: env.id, kind:'text', text: env.payload.text, bg: env.payload.bg, t: env.t };
+  } else if (env.mediaKind === 'image' && env.payload && env.payload.mediaKey) {
+    // Persist the R2 reference so the image can be re-fetched after a reload.
+    story = {
+      id: env.id, kind:'image', t: env.t,
+      mediaKey:  env.payload.mediaKey,
+      mediaHash: env.payload.mediaHash,
+      iv:        env.payload.iv,
+      seq:       env.payload.seq,
+      caption:   env.payload.caption,
+      mimeType:  env.payload.mimeType || 'image/jpeg',
+    };
+  } else return;
+  // Expire stories older than 24h while we're here
+  chat.peerStories = chat.peerStories.filter(s => Date.now() - new Date(s.t).getTime() < 86_400_000);
+  chat.peerStories.push(story);
+  chat.lastActive = nowISO();
+  await saveChat(chat);
+  // Image stories: trigger lazy fetch+decrypt so the viewer can render the photo.
+  if (story.kind === 'image') ensureMediaFetched(chat, story);
+  if (State.currentChatId === chat.id) renderMessages();
+  renderHome();
 }
 
 /* ---------------- swipe to dissolve ---------------- */
@@ -2230,6 +2603,8 @@ async function deleteChatLocally(chatId) {
     try { conn.ws.close(1000, 'local delete'); } catch {}
     Sync.sockets.delete(chatId);
   }
+  // Revoke any Blob URLs across messages + stories so the heap doesn't leak.
+  revokeChatBlobUrls(State.chats.find(c => c.id === chatId));
   State.chats = State.chats.filter(c => c.id !== chatId);
   if (State.currentChatId === chatId) State.currentChatId = null;
   // Per-chat IDB layout: remove the chat:<id> record AND update chat-index. saveChats() would
@@ -2329,41 +2704,109 @@ function renderBubble(m, sameAsPrev) {
         ${escapeHtml(m.body).replace(/\n/g,'<br/>')}
         <div class="meta">${time}</div>
       </div>`;
-    case 'media':
+    case 'media': {
+      // A6: real image bubble. Reads ephemeral m._blobUrl set by ensureMediaFetched (peer side)
+      // or by sendMediaMessage (sender side, from the local dataURL). If absent, kick off the
+      // lazy fetch and show a loading placeholder.
+      if (m._blobUrl) {
+        return `<div class="bubble media ${side}${sameCls}">
+          <img src="${escapeHtml(m._blobUrl)}" loading="lazy" style="display:block;width:100%;border-radius:14px;max-height:340px;object-fit:cover" />
+          ${m.caption ? `<div style="padding:6px 8px 0;font-size:13px;color:var(--cream-dim)">${escapeHtml(m.caption)}</div>` : ''}
+          <div class="meta" style="padding:4px 8px 2px">${time}</div>
+        </div>`;
+      }
+      const chat = State.chats.find(c => c.id === State.currentChatId);
+      if (chat && m.mediaKey) setTimeout(() => ensureMediaFetched(chat, m), 0);
       return `<div class="bubble media ${side}${sameCls}">
-        <div class="ph"><span>${escapeHtml(m.caption||'photo')}</span></div>
+        <div class="ph" style="height:160px;display:grid;place-items:center"><span>${m._fetchError ? 'could not load' : 'loading…'}</span></div>
         <div class="meta" style="padding:4px 8px 2px">${time}</div>
       </div>`;
-    case 'audio':
-      return `<div class="bubble audio ${side}${sameCls}">
-        <div class="play"><svg width="14" height="14" viewBox="0 0 24 24" fill="currentColor"><path d="M8 5v14l11-7z"/></svg></div>
-        <div class="wave">${Array.from({length:24}).map((_,i)=>`<i style="height:${20 + Math.sin(i*0.7)*40 + Math.random()*10}%"></i>`).join('')}</div>
-        <div class="dur">${m.duration||3}s</div>
+    }
+    case 'audio': {
+      // A6: real <audio controls>. Same lazy-fetch pattern as media. The MIME from the envelope
+      // is critical because R2 returns application/octet-stream; without `type=` Safari refuses.
+      if (m._blobUrl) {
+        const mt = m.mimeType || 'audio/mpeg';
+        return `<div class="bubble audio ${side}${sameCls}" style="padding:6px 10px">
+          <audio src="${escapeHtml(m._blobUrl)}" type="${escapeHtml(mt)}" controls preload="metadata" style="width:240px;max-width:60vw;display:block"></audio>
+          <div class="dur" style="font-family:'JetBrains Mono',monospace;font-size:11px;color:var(--whisper);padding-top:4px">${m.duration||0}s</div>
+        </div>`;
+      }
+      const chat = State.chats.find(c => c.id === State.currentChatId);
+      if (chat && m.mediaKey) setTimeout(() => ensureMediaFetched(chat, m), 0);
+      return `<div class="bubble audio ${side}${sameCls}" style="padding:10px 14px">
+        <div style="font-family:'JetBrains Mono',monospace;font-size:11.5px;color:var(--whisper)">${m._fetchError ? 'could not load voice' : 'loading voice…'}</div>
       </div>`;
-    case 'location':
-      return `<div class="bubble location ${side}${sameCls}">
-        <div class="map">
-          <div class="pin"><svg width="32" height="32" viewBox="0 0 24 24" fill="currentColor"><path d="M12 2C8 2 5 5 5 9c0 5 7 13 7 13s7-8 7-13c0-4-3-7-7-7zm0 9a2.5 2.5 0 1 1 0-5 2.5 2.5 0 0 1 0 5z"/></svg></div>
-        </div>
-        <div class="loc-label">📍 ${escapeHtml(m.label || 'shared a place')}</div>
+    }
+    case 'location': {
+      // A6: real coords + native maps app link. No tile (OSM staticmap is community-only;
+      // a production tile provider is Phase B).
+      const lat = (m.lat !== undefined) ? Number(m.lat) : null;
+      const lng = (m.lng !== undefined) ? Number(m.lng) : null;
+      if (lat === null || lng === null) {
+        // Legacy: pre-A6 chats stored location as a label only. Render the label, no link.
+        return `<div class="bubble location ${side}${sameCls}">
+          <div class="map"><div class="pin"><svg width="32" height="32" viewBox="0 0 24 24" fill="currentColor"><path d="M12 2C8 2 5 5 5 9c0 5 7 13 7 13s7-8 7-13c0-4-3-7-7-7zm0 9a2.5 2.5 0 1 1 0-5 2.5 2.5 0 0 1 0 5z"/></svg></div></div>
+          <div class="loc-label">📍 ${escapeHtml(m.label || 'shared a place')}</div>
+          <div class="meta" style="padding:2px 6px 4px">${time}</div>
+        </div>`;
+      }
+      const href = mapHref(lat, lng);
+      const coords = `${formatCoord(lat,'N','S')}, ${formatCoord(lng,'E','W')}`;
+      return `<a class="bubble location ${side}${sameCls}" href="${escapeHtml(href)}" target="_blank" rel="noopener" style="text-decoration:none;color:inherit;display:block">
+        <div class="map"><div class="pin"><svg width="32" height="32" viewBox="0 0 24 24" fill="currentColor"><path d="M12 2C8 2 5 5 5 9c0 5 7 13 7 13s7-8 7-13c0-4-3-7-7-7zm0 9a2.5 2.5 0 1 1 0-5 2.5 2.5 0 0 1 0 5z"/></svg></div></div>
+        <div class="loc-label" style="font-family:'JetBrains Mono',monospace;font-size:12px">${escapeHtml(coords)}</div>
+        <div style="font-size:11px;color:var(--whisper);padding:0 6px 2px;letter-spacing:.04em">tap to open in maps</div>
         <div class="meta" style="padding:2px 6px 4px">${time}</div>
-      </div>`;
-    case 'contact':
+      </a>`;
+    }
+    case 'contact': {
+      // A6: render real contact data — handle (required) + optional name/phone/email.
+      const lines = [];
+      if (m.name)  lines.push(`<div style="font-size:12px;color:var(--cream-dim)">${escapeHtml(m.name)}</div>`);
+      if (m.phone) lines.push(`<div style="font-family:'JetBrains Mono',monospace;font-size:11.5px;color:var(--whisper)"><a href="tel:${escapeHtml(m.phone)}" style="color:inherit;text-decoration:none">${escapeHtml(m.phone)}</a></div>`);
+      if (m.email) lines.push(`<div style="font-family:'JetBrains Mono',monospace;font-size:11.5px;color:var(--whisper)"><a href="mailto:${escapeHtml(m.email)}" style="color:inherit;text-decoration:none">${escapeHtml(m.email)}</a></div>`);
       return `<div class="bubble contact ${side}${sameCls}">
         <div class="ico"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor"><circle cx="12" cy="8" r="4"/><path d="M4 21v-1a8 8 0 0 1 16 0v1"/></svg></div>
         <div>
           <div class="ct-name" style="font-family:'JetBrains Mono',monospace;font-size:13px;letter-spacing:.02em">${escapeHtml(m.handle||'@?')}</div>
-          <div class="ct-handle">shared a contact</div>
+          ${lines.length ? lines.join('') : `<div class="ct-handle">shared a contact</div>`}
         </div>
       </div>`;
-    case 'socials':
-      return `<div class="bubble ${side}${sameCls}" style="padding:12px 14px">
-        <div style="font-weight:500;font-size:13px;margin-bottom:6px;opacity:.9">${escapeHtml(m.title||'my socials')}</div>
-        <div style="display:flex;flex-direction:column;gap:4px;font-family:'JetBrains Mono',monospace;font-size:12px;opacity:.85">
-          ${(m.links||['@me','@me','@me']).map(l => `<div>${escapeHtml(l)}</div>`).join('')}
-        </div>
+    }
+    case 'socials': {
+      // A6.1: real socials. Each link {platform, handle} renders as a clickable chip that
+      // opens the platform URL. Mobile OS intercepts known URL patterns (https://instagram.com,
+      // tel:, mailto:) and routes to the installed app when present.
+      // Legacy fallback: pre-A6.1 chats stored `links` as an array of plain strings — show them
+      // as monospace text without links.
+      const links = Array.isArray(m.links) ? m.links : [];
+      const isLegacy = links.length > 0 && typeof links[0] === 'string';
+      if (isLegacy) {
+        return `<div class="bubble ${side}${sameCls}" style="padding:12px 14px">
+          <div style="font-weight:500;font-size:13px;margin-bottom:6px;opacity:.9">${escapeHtml(m.title||'my socials')}</div>
+          <div style="display:flex;flex-direction:column;gap:4px;font-family:'JetBrains Mono',monospace;font-size:12px;opacity:.85">
+            ${links.map(l => `<div>${escapeHtml(l)}</div>`).join('')}
+          </div>
+          <div class="meta">${time}</div>
+        </div>`;
+      }
+      const chips = links.map(({platform, handle}) => {
+        const plat = platformByKey(platform);
+        if (!plat || !handle) return '';
+        const href = plat.urlBuilder(handle);
+        const display = (platform === 'phone' || platform === 'whatsapp') ? handle : '@' + handle.replace(/^@/, '');
+        return `<a href="${escapeHtml(href)}" target="_blank" rel="noopener" title="${escapeHtml(plat.label)}">${plat.icon}<span>${escapeHtml(display)}</span></a>`;
+      }).join('');
+      return `<div class="bubble ${side}${sameCls}" style="padding:12px 14px;max-width:300px">
+        <div style="font-size:11px;letter-spacing:.12em;text-transform:uppercase;opacity:.6">socials</div>
+        <div class="soc-row">${chips}</div>
         <div class="meta">${time}</div>
       </div>`;
+    }
+    /* Legacy bubble kinds — A6 dropped the attachment tiles for identity + gif, but
+       pre-v1.5 chats may still have messages of these kinds stored. Keep the render arms
+       so old data displays correctly; no new sends will ever produce them. */
     case 'identity':
       return `<div class="bubble ${side}${sameCls}" style="padding:12px 14px;min-width:200px">
         <div style="font-size:11px;letter-spacing:.12em;text-transform:uppercase;opacity:.6;margin-bottom:6px">identity</div>
@@ -2461,32 +2904,290 @@ async function handleAttach(kind) {
   const chat = State.chats.find(c => c.id === State.currentChatId);
   if (!chat) return;
   switch (kind) {
-    case 'media':
-      await sendMessage({ kind: 'media', caption: 'photo' });
-      break;
-    case 'audio':
-      await sendMessage({ kind: 'audio', duration: Math.floor(2 + Math.random()*8) });
-      break;
-    case 'location':
-      await sendMessage({ kind: 'location', label: 'where i am' });
-      break;
-    case 'contact':
-      await sendMessage({ kind: 'contact', handle: '@a_friend' });
-      break;
-    case 'socials':
-      const slug = (chat.myHandle||'@me').replace('@','');
-      await sendMessage({ kind: 'socials', title: 'my socials', links: ['ig · @' + slug, 'x · @' + slug, 'are.na · /' + slug] });
-      break;
-    case 'identity':
-      await sendMessage({ kind: 'identity', handle: chat.myHandle });
-      break;
-    case 'gif':
-      await sendMessage({ kind: 'gif', label: 'mood' });
-      break;
-    case 'story':
-      openStoryCreate();
-      break;
+    case 'media':    await attachPhoto(chat); break;
+    case 'audio':    await attachVoice(chat); break;
+    case 'location': await attachPlace(chat); break;
+    case 'contact':  await attachContact(chat); break;
+    case 'socials':  await attachSocials(chat); break;   // A6.1
+    case 'story':    openStoryCreate(); break;
+    // identity + gif tiles are removed (A6). Legacy render cases stay for old chat data.
   }
+}
+
+/* ---------------- A6 attachment helpers ---------------- */
+
+// PHOTO — bottom-sheet (camera/library), downscale to <=1080px JPEG, R2 upload, send envelope.
+function attachPhoto(chat) {
+  return new Promise(resolve => {
+    let resolved = false;
+    const done = () => { if (!resolved) { resolved = true; resolve(); } };
+    const sheet = $('#photoSheet');
+    const photoCameraInput  = $('#attachPhotoCamera');
+    const photoLibraryInput = $('#attachPhotoLibrary');
+    sheet.classList.add('show');
+    const onSheetClick = async (e) => {
+      const tgt = e.target.closest('button[data-source]');
+      if (!tgt) { if (e.target === sheet) { sheet.classList.remove('show'); cleanup(); done(); } return; }
+      sheet.classList.remove('show');
+      const src = tgt.dataset.source;
+      if (src === 'camera')  photoCameraInput.click();
+      if (src === 'library') photoLibraryInput.click();
+      if (src === 'cancel')  { cleanup(); done(); }
+    };
+    const onPick = async (e) => {
+      cleanup();
+      const f = e.target.files && e.target.files[0];
+      e.target.value = '';
+      if (!f) { done(); return; }
+      try {
+        // Downscale to <=1080px JPEG quality 0.82; typical lands 100-500KB.
+        const dataUrl = await Media.downscaleImage(f, { maxEdge: 1080, quality: 0.82 });
+        const bytes = unb64(dataUrl.split(',')[1] || '');
+        await sendMediaMessage(chat, bytes, { kind:'media', mediaKind:'image', mimeType:'image/jpeg' }, dataUrl);
+      } catch (err) {
+        console.warn('photo attach failed', err);
+        toast('could not send that photo');
+      }
+      done();
+    };
+    sheet.addEventListener('click', onSheetClick);
+    photoCameraInput.addEventListener('change',  onPick, { once:true });
+    photoLibraryInput.addEventListener('change', onPick, { once:true });
+    function cleanup() {
+      sheet.removeEventListener('click', onSheetClick);
+      // change listeners are once:true, but if they never fired we leave them — { once:true }
+      // is per-event-trigger automatic cleanup, no leak.
+    }
+  });
+}
+
+// Send a media bubble: local copy gets the dataURL immediately (so the sender sees the image
+// instantly without round-tripping through R2), peer side gets the envelope + lazy fetch.
+async function sendMediaMessage(chat, bytes, envelopeExtras, localDataUrl) {
+  if (chat.ended) { toast('this chat has ended'); return; }
+  if (!chat.protoVersion || chat.protoVersion < 2) { toast('this chat needs to be re-paired'); return; }
+  if (!chat.synced || !Sync.sockets.has(chat.id)) { toast('not connected'); return; }
+  try {
+    const result = await sendMediaAttachment(chat, bytes, envelopeExtras);
+    // Sender-side: push the message to chat.messages with _blobUrl from the local dataURL
+    // so the sender sees their own attachment immediately. The R2 envelope went to the peer.
+    const msg = {
+      id: uid(8), from: 'me', t: nowISO(),
+      ...envelopeExtras,
+      mediaKey: result.mediaKey, mediaHash: result.mediaHash, iv: result.iv, seq: result.seq,
+      _blobUrl: localDataUrl,  // local sender uses the dataURL directly
+    };
+    chat.messages.push(msg);
+    chat.lastActive = nowISO();
+    await saveChat(chat);
+    renderMessages();
+    renderHome();
+  } catch (e) {
+    console.warn('media send failed', e);
+    toast('could not send');
+  }
+}
+
+// VOICE — MediaRecorder with MIME probe + R2 upload. Tap mic to start, tap again to stop.
+let __voiceState = null;  // {recorder, chunks, mimeType, startedAt, statusEl, chat}
+function pickAudioMime() {
+  if (typeof MediaRecorder === 'undefined') return null;
+  const candidates = ['audio/webm;codecs=opus','audio/mp4','audio/ogg;codecs=opus','audio/webm'];
+  for (const t of candidates) {
+    try { if (MediaRecorder.isTypeSupported(t)) return t; } catch {}
+  }
+  return null;
+}
+async function attachVoice(chat) {
+  // If a recording is in-flight, this tap stops it.
+  if (__voiceState) {
+    try { __voiceState.recorder.stop(); } catch {}
+    return;
+  }
+  if (typeof MediaRecorder === 'undefined') {
+    toast('voice recording is not supported on this browser');
+    return;
+  }
+  let stream;
+  try { stream = await navigator.mediaDevices.getUserMedia({ audio: true }); }
+  catch { toast('microphone permission denied'); return; }
+  let mimeType = pickAudioMime();
+  let recorder;
+  try {
+    recorder = mimeType ? new MediaRecorder(stream, { mimeType }) : new MediaRecorder(stream);
+    // Browser-default fallback path: read the chosen MIME back after start.
+    if (!mimeType) mimeType = recorder.mimeType || 'audio/webm';
+  } catch (e) {
+    toast('voice recording failed to start');
+    stream.getTracks().forEach(t => t.stop());
+    return;
+  }
+  const chunks = [];
+  const startedAt = Date.now();
+  recorder.addEventListener('dataavailable', e => { if (e.data && e.data.size) chunks.push(e.data); });
+  recorder.addEventListener('stop', async () => {
+    __voiceState = null;
+    stream.getTracks().forEach(t => t.stop());
+    toast('');  // clear any "recording…" toast
+    const blob = new Blob(chunks, { type: mimeType });
+    const duration = Math.max(1, Math.round((Date.now() - startedAt) / 1000));
+    try {
+      const bytes = new Uint8Array(await blob.arrayBuffer());
+      const localUrl = URL.createObjectURL(blob);
+      await sendMediaMessage(chat, bytes, { kind:'audio', duration, mimeType }, localUrl);
+    } catch (e) {
+      console.warn('voice send failed', e);
+      toast('could not send voice');
+    }
+  });
+  __voiceState = { recorder, chunks, mimeType, startedAt, chat };
+  recorder.start();
+  toast('recording — tap mic again to send');
+}
+
+// PLACE — geolocation, render coord card + maps link (no map tile in v1.5).
+function attachPlace(chat) {
+  if (!navigator.geolocation) { toast('location not supported'); return Promise.resolve(); }
+  return new Promise(resolve => {
+    navigator.geolocation.getCurrentPosition(async pos => {
+      const lat = pos.coords.latitude, lng = pos.coords.longitude;
+      const acc = Math.round(pos.coords.accuracy || 0);
+      try { await sendMessage({ kind:'location', lat, lng, accuracy: acc }); }
+      catch (e) { console.warn('location send failed', e); }
+      resolve();
+    }, err => {
+      toast(err.code === err.PERMISSION_DENIED ? 'location permission denied' : 'couldn\'t get your location');
+      resolve();
+    }, { enableHighAccuracy: true, timeout: 10000, maximumAge: 30000 });
+  });
+}
+
+// Platform-aware map link. iOS Safari has no native geo: handler; use the universal Apple Maps URL.
+function mapHref(lat, lng) {
+  const ua = (typeof navigator !== 'undefined' && navigator.userAgent) || '';
+  if (/iPhone|iPad|iPod|Macintosh/.test(ua)) {
+    return `https://maps.apple.com/?ll=${lat},${lng}&q=${lat},${lng}`;
+  }
+  return `geo:${lat},${lng}?q=${lat},${lng}`;
+}
+function formatCoord(v, pos, neg) {
+  const abs = Math.abs(v).toFixed(4);
+  return `${abs}° ${v >= 0 ? pos : neg}`;
+}
+
+// CONTACT — small form modal. Handle is required; name/phone/email are optional.
+function attachContact(chat) {
+  return openMiniForm({
+    title: 'share a contact',
+    fields: [
+      { key:'handle', label:'handle',         required:true,  placeholder:'@friend' },
+      { key:'name',   label:'name (optional)', placeholder:'their name' },
+      { key:'phone',  label:'phone (optional)', placeholder:'+1 555 ...', type:'tel' },
+      { key:'email',  label:'email (optional)', placeholder:'them@example.com', type:'email' },
+    ],
+    okLabel: 'send',
+  }).then(async values => {
+    if (!values) return;
+    const handle = normalizeHandle(values.handle || '');
+    if (!handle || handle === '@') { toast('a handle is required'); return; }
+    const payload = { kind:'contact', handle };
+    if (values.name)  payload.name  = values.name;
+    if (values.phone) payload.phone = values.phone;
+    if (values.email) payload.email = values.email;
+    try { await sendMessage(payload); } catch (e) { console.warn('contact send failed', e); }
+  });
+}
+
+// SOCIALS — wired in A6.1.
+async function attachSocials(chat) {
+  return openSocialsPicker(chat);
+}
+
+// A6.1 — Socials picker overlay. Shows one icon per platform: active (color) when handle
+// is set in profile, greyed when not. Tapping a greyed icon opens an inline mini-input that
+// saves to profile AND auto-selects for this send. Tap "send" to ship the picked set.
+function openSocialsPicker(chat) {
+  return new Promise(resolve => {
+    State.profile.socials = State.profile.socials || {};
+    const selected = new Set();   // set of platform keys currently chosen for send
+    const bd = $('#socialsPickerOverlay');
+    const grid = $('#socialsPickerGrid');
+    const sendBtn = $('#socialsPickerSend');
+    const cancelBtn = $('#socialsPickerCancel');
+
+    function render() {
+      const socials = State.profile.socials;
+      grid.innerHTML = SOCIAL_PLATFORMS.map(p => {
+        const has = !!socials[p.key];
+        const sel = selected.has(p.key);
+        return `<div class="soc-pick ${has ? 'has' : 'empty'}${sel ? ' sel' : ''}" data-key="${p.key}">
+          <div class="soc-ico">${p.icon}</div>
+          <div class="soc-lbl">${escapeHtml(p.label)}</div>
+          ${has ? `<div class="soc-handle">${escapeHtml(socials[p.key])}</div>` : ''}
+          ${sel ? '<div class="soc-check">✓</div>' : ''}
+        </div>`;
+      }).join('');
+      sendBtn.disabled = selected.size === 0;
+      grid.querySelectorAll('.soc-pick').forEach(el => {
+        el.addEventListener('click', async () => {
+          const key = el.dataset.key;
+          if (State.profile.socials[key]) {
+            // toggle
+            if (selected.has(key)) selected.delete(key); else selected.add(key);
+            render();
+          } else {
+            // inline-add: replace the tile with a small input row
+            const plat = platformByKey(key);
+            el.innerHTML = `<div class="soc-ico">${plat.icon}</div>
+              <input class="input mono soc-inline" placeholder="${plat.placeholder}" autocomplete="off" autocapitalize="off" autocorrect="off" />
+              <button class="soc-save" type="button">add</button>`;
+            const inp = el.querySelector('input');
+            const btn = el.querySelector('.soc-save');
+            inp.focus();
+            const commit = async () => {
+              const raw = inp.value.trim();
+              if (!raw) return render();
+              const normalized = plat.normalize(raw);
+              if (!normalized) return render();
+              State.profile.socials[key] = normalized;
+              selected.add(key);
+              await saveProfile();
+              render();
+            };
+            btn.addEventListener('click', commit);
+            inp.addEventListener('keydown', e => { if (e.key === 'Enter') commit(); });
+          }
+        });
+      });
+    }
+
+    function close(values) {
+      bd.classList.remove('open');
+      sendBtn.removeEventListener('click', onSend);
+      cancelBtn.removeEventListener('click', onCancel);
+      bd.removeEventListener('click', onBackdrop);
+      resolve(values);
+    }
+    async function onSend() {
+      const links = [];
+      for (const key of selected) {
+        const handle = State.profile.socials[key];
+        if (handle) links.push({ platform: key, handle });
+      }
+      close(null);
+      if (!links.length) return;
+      try { await sendMessage({ kind:'socials', links }); }
+      catch (e) { console.warn('socials send failed', e); }
+    }
+    function onCancel() { close(null); }
+    function onBackdrop(e) { if (e.target === bd) close(null); }
+
+    sendBtn.addEventListener('click', onSend);
+    cancelBtn.addEventListener('click', onCancel);
+    bd.addEventListener('click', onBackdrop);
+    bd.classList.add('open');
+    render();
+  });
 }
 
 /* ---------------- stories ---------------- */
@@ -2568,23 +3269,59 @@ async function postStory() {
     const captionEl = $('#storyText');
     story = { id: uid(8), kind:'image', dataUrl: d.dataUrl, caption: captionEl.value.trim(), t: nowISO() };
   } else if (d.kind === 'video') {
-    if (!d.dataUrl) { toast('pick a video'); return; }
-    const captionEl = $('#storyText');
-    story = { id: uid(8), kind:'video', dataUrl: d.dataUrl, duration: d.duration, caption: captionEl.value.trim(), t: nowISO() };
+    // A4: video stories deferred to Phase B (require R2 + media-key coordination).
+    // The UI toggle is hidden but defending against a stale draft state.
+    toast('video stories are coming soon');
+    return;
   } else { return; }
 
-  // attach to all chats. (Per-chat selectivity is a future feature.)
-  // Category B bulk write: per-chat IDB layout requires saveChat(c) INSIDE the loop so each
-  // touched record is persisted. A single saveChat after the loop would only save the last
-  // chat. saveChats() (the fan-out shim) would also work but is identical effort.
+  // Local-side: attach to every chat (Category B bulk write — saveChat INSIDE the loop).
   for (const c of State.chats) {
     c.myStories = c.myStories || [];
     c.myStories.push(story);
-    // expire anything older than 24h while we're here
     c.myStories = c.myStories.filter(s => Date.now() - new Date(s.t).getTime() < 86_400_000);
     await saveChat(c);
   }
   renderHome();
+
+  // Server-side: send a story envelope over WS to every connected synced chat. Images upload
+  // to R2 once (the envelope reuses the same mediaKey across all chats sharing that image).
+  // Failures are logged but don't block — the local story still posts.
+  if (SYNC_ENABLED) {
+    // For image stories, decode the dataURL to raw bytes ONCE so each per-chat upload reuses
+    // the same plaintext source. (Each chat still re-encrypts under its own chain key.)
+    let imageBytes = null;
+    if (story.kind === 'image') {
+      try {
+        const m = story.dataUrl.match(/^data:([^;]+);base64,(.+)$/);
+        if (m) imageBytes = unb64(m[2]);
+      } catch {}
+    }
+    for (const c of State.chats) {
+      if (!c.synced || !Sync.sockets.has(c.id)) continue;
+      try {
+        if (story.kind === 'text') {
+          await Sync.sendOver(c, {
+            kind: 'story-envelope', id: story.id, mediaKind: 'text', t: story.t,
+            payload: { text: story.text, bg: story.bg },
+          });
+        } else if (story.kind === 'image' && imageBytes) {
+          // Reserve a seq, upload, then ship the envelope with the same seq.
+          const conn = Sync.sockets.get(c.id);
+          if (!conn) continue;
+          const seq = ++conn.sendCounter;
+          const { mediaKey, mediaHash, iv } = await uploadEncryptedMedia(c, imageBytes, seq);
+          await Sync.sendOverAt(c, seq, {
+            kind: 'story-envelope', id: story.id, mediaKind: 'image', t: story.t,
+            payload: { mediaKey, mediaHash, iv, seq, caption: story.caption, mimeType: 'image/jpeg' },
+          });
+        }
+      } catch (e) {
+        console.warn('story envelope failed for chat', c.id, e);
+      }
+    }
+  }
+
   toast(story.kind === 'text' ? 'story posted' : `${story.kind} story posted`);
   goBack();
 }
@@ -2712,7 +3449,36 @@ function openSettings() {
   $('#defaultHandle').value = State.profile.defaultHandle || '';
   $('#statChats').textContent = State.chats.length;
   $('#statMsgs').textContent = State.chats.reduce((a,c) => a + c.messages.length, 0);
+  renderSocialsFields();
+  updateInstallVisibility();   // A9: surface install button or iOS hint when appropriate
   showScreen('settings');
+}
+
+// A6.1: render the "your socials" inputs from SOCIAL_PLATFORMS. Each input blur-saves
+// its normalized value back into State.profile.socials and persists.
+function renderSocialsFields() {
+  const wrap = $('#socialsFields');
+  if (!wrap) return;
+  const socials = (State.profile && State.profile.socials) || {};
+  wrap.innerHTML = SOCIAL_PLATFORMS.map(p => `
+    <div style="display:flex;align-items:center;gap:10px;margin-bottom:10px">
+      <div style="width:28px;height:28px;flex:0 0 28px;display:grid;place-items:center;color:var(--cream-dim)">${p.icon}</div>
+      <input class="input mono" data-platform="${p.key}" placeholder="${p.placeholder}" value="${escapeHtml(socials[p.key] || '')}" style="flex:1;padding:8px 10px;font-size:13px" />
+    </div>
+  `).join('');
+  wrap.querySelectorAll('input[data-platform]').forEach(inp => {
+    inp.addEventListener('blur', async () => {
+      const key = inp.dataset.platform;
+      const plat = platformByKey(key);
+      const raw = inp.value.trim();
+      const normalized = raw ? plat.normalize(raw) : '';
+      State.profile.socials = State.profile.socials || {};
+      if (normalized) State.profile.socials[key] = normalized;
+      else delete State.profile.socials[key];
+      inp.value = normalized;
+      await saveProfile();
+    });
+  });
 }
 
 /* ---------------- in-app confirm modal ---------------- */
@@ -2745,6 +3511,59 @@ function confirmModal({title, body, okLabel='confirm', cancelLabel='cancel', dan
   });
 }
 
+// Generic mini-form modal — resolves to a {key:value} object on send, or null on cancel.
+// `fields` is an array of {key, label, required?, placeholder?, type?, value?}.
+function openMiniForm({ title, fields, okLabel='send', cancelLabel='cancel' } = {}) {
+  return new Promise(resolve => {
+    const bd = $('#formBackdrop');
+    $('#formTitle').textContent = title || 'share';
+    const body = $('#formBody');
+    body.innerHTML = '';
+    const inputs = {};
+    for (const f of fields) {
+      const row = document.createElement('div');
+      row.style.cssText = 'display:flex;flex-direction:column;gap:6px;margin-bottom:12px;text-align:left';
+      const lab = document.createElement('label');
+      lab.textContent = f.label + (f.required ? ' *' : '');
+      lab.style.cssText = 'font-size:11px;letter-spacing:.06em;text-transform:uppercase;color:var(--whisper)';
+      const inp = document.createElement('input');
+      inp.type = f.type || 'text';
+      inp.className = 'input mono';
+      inp.placeholder = f.placeholder || '';
+      if (f.value != null) inp.value = f.value;
+      inp.autocomplete = 'off'; inp.autocapitalize = 'off'; inp.autocorrect = 'off';
+      row.appendChild(lab); row.appendChild(inp);
+      body.appendChild(row);
+      inputs[f.key] = inp;
+    }
+    const ok = $('#formOk');
+    const cancel = $('#formCancel');
+    ok.textContent = okLabel; cancel.textContent = cancelLabel;
+    ok.style.background = 'var(--gold)'; ok.style.color = 'var(--ink)';
+    bd.classList.add('open');
+    const cleanup = (result) => {
+      bd.classList.remove('open');
+      ok.removeEventListener('click', onOk);
+      cancel.removeEventListener('click', onCancel);
+      bd.removeEventListener('click', onBackdrop);
+      resolve(result);
+    };
+    const onOk = () => {
+      const values = {};
+      for (const k of Object.keys(inputs)) values[k] = inputs[k].value.trim();
+      // Required-field check
+      for (const f of fields) if (f.required && !values[f.key]) { inputs[f.key].focus(); return; }
+      cleanup(values);
+    };
+    const onCancel = () => cleanup(null);
+    const onBackdrop = (e) => { if (e.target === bd) cleanup(null); };
+    ok.addEventListener('click', onOk);
+    cancel.addEventListener('click', onCancel);
+    bd.addEventListener('click', onBackdrop);
+    setTimeout(() => { const first = body.querySelector('input'); if (first) first.focus(); }, 50);
+  });
+}
+
 async function wipeAll() {
   const ok = await confirmModal({
     title: 'wipe everything',
@@ -2755,8 +3574,10 @@ async function wipeAll() {
   });
   if (!ok) return;
 
+  // Revoke Blob URLs across every chat before dropping the in-memory state.
+  for (const c of State.chats) revokeChatBlobUrls(c);
   State.chats = [];
-  State.profile = { defaultHandle:'' };
+  State.profile = { defaultHandle:'', socials:{} };
   State.currentChatId = null;
   State.onboarded = false;
 
@@ -2806,6 +3627,49 @@ async function dismissOnboard() {
 }
 
 /* ---------------- wire ---------------- */
+// A9: PWA install affordance state. Captured on bootstrap, surfaced via Settings.
+let __deferredInstallPrompt = null;
+function isRunningStandalone() {
+  if (typeof window === 'undefined') return false;
+  if (window.matchMedia && window.matchMedia('(display-mode: standalone)').matches) return true;
+  if (window.navigator && window.navigator.standalone === true) return true;  // iOS Safari
+  return false;
+}
+function isIosSafari() {
+  const ua = (typeof navigator !== 'undefined' && navigator.userAgent) || '';
+  const isIos = /iPhone|iPad|iPod/.test(ua);
+  // iOS Safari only: must NOT be Chrome (CriOS), Firefox (FxiOS), Edge (EdgiOS) which proxy
+  // WebKit but lack the share→Add-to-Home flow we want to instruct.
+  const isSafariOnIos = isIos && /Safari/.test(ua) && !/CriOS|FxiOS|EdgiOS/.test(ua);
+  return isSafariOnIos;
+}
+function setupInstallAffordance() {
+  if (typeof window === 'undefined') return;
+  window.addEventListener('beforeinstallprompt', (e) => {
+    e.preventDefault();
+    __deferredInstallPrompt = e;
+    updateInstallVisibility();
+  });
+  window.addEventListener('appinstalled', () => {
+    __deferredInstallPrompt = null;
+    updateInstallVisibility();
+  });
+}
+function updateInstallVisibility() {
+  const group = $('#installGroup');
+  const btn   = $('#installBtn');
+  const hint  = $('#installHintIos');
+  if (!group) return;
+  if (isRunningStandalone()) { group.hidden = true; return; }
+  if (__deferredInstallPrompt) {
+    btn.hidden = false; hint.hidden = true; group.hidden = false;
+  } else if (isIosSafari()) {
+    btn.hidden = true; hint.hidden = false; group.hidden = false;
+  } else {
+    group.hidden = true;
+  }
+}
+
 async function init() {
   await bootstrap();
   renderHome();
@@ -2824,6 +3688,9 @@ async function init() {
   // here after renderHome lets first paint happen first, then the (browser-dependent)
   // permission prompt fires against an investedlooking app. 500ms delay = polish.
   setTimeout(() => { requestPersistence().catch(()=>{}); }, 500);
+
+  // A9: capture beforeinstallprompt + appinstalled so Settings can surface the right affordance.
+  setupInstallAffordance();
 
   // reconnect any existing synced chats; also drain queued dissolves and check tombstones
   if (SYNC_ENABLED) {
@@ -2886,34 +3753,44 @@ async function init() {
   $('#myHandleField').addEventListener('input', maybeShowQR);
   $('#myHandleField').addEventListener('blur', e => { e.target.value = normalizeHandle(e.target.value); maybeShowQR(); });
 
-  $$('#portraitRow .portrait-pick[data-vibe]').forEach(el => {
-    el.addEventListener('click', () => {
-      $$('#portraitRow .portrait-pick').forEach(x => x.classList.remove('selected'));
-      el.classList.add('selected');
-      const vibe = el.dataset.vibe;
-      const c1 = getComputedStyle(el).getPropertyValue('--c1').trim() || '#d8a86a';
-      State.pendingPortrait = { kind:'vibe', vibe, color: c1 };
-      // reset selfie button visual
-      $('#selfieBtn').innerHTML = `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor"><path d="M23 19a2 2 0 0 1-2 2H3a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h4l2-3h6l2 3h4a2 2 0 0 1 2 2z"/><circle cx="12" cy="13" r="4"/></svg>`;
-      maybeShowQR();
-    });
-  });
-  $('#selfieBtn').addEventListener('click', () => $('#selfieInput').click());
-  $('#selfieInput').addEventListener('change', async e => {
-    const f = e.target.files && e.target.files[0];
-    if (!f) return;
+  // Vibe-circle picker is gone (A2). Default portrait is handle-derived if user doesn't
+  // tap the camera button. Camera button opens a bottom-sheet with two photo sources.
+  async function onSelfiePicked(file) {
+    if (!file) return;
     try {
-      const dataUrl = await Media.downscaleImage(f, { maxEdge: 480, quality: 0.85, square: true });
+      // 480×480 @ 0.8 lands ~30-50KB; the server's sanitizePortrait caps dataUrl at 200KB.
+      // Raising quality or maxEdge silently breaks pairing if the resulting dataURL crosses the cap.
+      const dataUrl = await Media.downscaleImage(file, { maxEdge: 480, quality: 0.8, square: true });
       State.pendingPortrait = { kind:'selfie', dataUrl };
-      $$('#portraitRow .portrait-pick').forEach(x => x.classList.remove('selected'));
       const btn = $('#selfieBtn');
       btn.classList.add('selected');
       btn.innerHTML = `<img src="${dataUrl}" alt="">`;
+      const hint = $('#portraitHint');
+      if (hint) hint.textContent = 'they\'ll see this photo';
       maybeShowQR();
     } catch (err) {
       toast('could not read that photo');
     }
+  }
+
+  const photoSheet = $('#photoSheet');
+  function openPhotoSheet() { photoSheet.classList.add('show'); }
+  function closePhotoSheet() { photoSheet.classList.remove('show'); }
+  $('#selfieBtn').addEventListener('click', openPhotoSheet);
+  photoSheet.addEventListener('click', (e) => {
+    const tgt = e.target.closest('button[data-source]');
+    if (!tgt) {
+      // tap on backdrop closes
+      if (e.target === photoSheet) closePhotoSheet();
+      return;
+    }
+    closePhotoSheet();
+    const src = tgt.dataset.source;
+    if (src === 'camera')  $('#selfieInputCamera').click();
+    if (src === 'library') $('#selfieInputLibrary').click();
   });
+  $('#selfieInputCamera').addEventListener('change',  e => onSelfiePicked(e.target.files && e.target.files[0]));
+  $('#selfieInputLibrary').addEventListener('change', e => onSelfiePicked(e.target.files && e.target.files[0]));
 
   // chat composer
   const input = $('#messageInput');
@@ -2984,6 +3861,16 @@ async function init() {
   });
   $('#wipeBtn').addEventListener('click', wipeAll);
 
+  // A9: install button — fires the captured beforeinstallprompt event on Chrome/Android.
+  // (On iOS Safari there's no programmatic install; the hint paragraph stands in.)
+  $('#installBtn').addEventListener('click', async () => {
+    if (!__deferredInstallPrompt) return;
+    const evt = __deferredInstallPrompt;
+    __deferredInstallPrompt = null;
+    try { evt.prompt(); await evt.userChoice; } catch {}
+    updateInstallVisibility();
+  });
+
   // story kind toggle
   $$('#storyKindToggle button').forEach(btn => {
     btn.addEventListener('click', async () => {
@@ -3015,17 +3902,8 @@ async function init() {
   // story canvas tap-to-advance
   $('#storyCanvas').addEventListener('click', onStoryCanvasClick);
 
-  // chat info now seeds peer with TWO sample stories (text + image-as-text) so you can experience the multi-story viewer
-  $('#chatInfo').addEventListener('click', async () => {
-    const chat = State.chats.find(c => c.id === State.currentChatId);
-    if (!chat) return;
-    chat.peerStories = chat.peerStories || [];
-    chat.peerStories.push({ id: uid(8), kind:'text', text:'just landed', bg:'linear-gradient(135deg,#1a2a3e,#8fb3c8)', t: nowISO() });
-    chat.peerStories.push({ id: uid(8), kind:'text', text:'it\'s raining here', bg:'linear-gradient(135deg,#3a1a2e,#e8a8b1)', t: nowISO() });
-    await saveChat(chat);
-    openChat(chat.id);
-    toast('they posted two stories — tap their portrait');
-  });
+  // A5a: #chatInfo handler removed. The prototype seeded fake peer stories here; real peer
+  // stories now arrive over the WS as kind:'story-envelope' (see A4).
 }
 
 init();
